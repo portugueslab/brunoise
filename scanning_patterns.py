@@ -4,7 +4,7 @@ from numba import jit
 @jit(nopython=True)
 def make_arc(cx, cy, radius, n_segments=12, is_left=True):
     """
-    Make an half-circle arc with the centre cx, cy with n_segments points,
+        Make an half-circle arc with the centre cx, cy with n_segments poic
     """
     angles = np.linspace((3*np.pi/2 if is_left else -np.pi/2), np.pi/2, n_segments)
     return np.cos(angles)*radius+cx, np.sin(angles)*radius+cy
@@ -32,3 +32,17 @@ def simple_scanning_pattern(n_x, n_y, n_turn, pause_x=False):
         points_x.extend(path_x)
         points_y.extend([i_y for _ in range(len(path_x))])
     return np.array(points_x), np.array(points_y)
+
+@jit(nopython=True)
+def reconstruct_image_pattern(signal, scan_x, scan_y, image_size, n_bin=10):
+    """
+    Reconstructs an image given an integrar scanning pattern
+    """
+    n_y, n_x = image_size
+    image = np.empty(image_size)
+    for i in range(0, length(signal), n_bin):
+        cx = scan_x[i]
+        cy = scan_y[i]
+        if (0 <= cx < n_x) and (0 <= cy <= n_y):
+            image[cy, cx] = np.sum(signal[i:i+n_bin])
+    return image
