@@ -41,10 +41,10 @@ def reconstruct_image_pattern(signal, scan_x, scan_y, image_size, n_bin=10):
     Reconstructs an image given an integrar scanning pattern
     """
     n_y, n_x = image_size
-    image = np.empty(image_size)
-    for i in range(0, length(signal), n_bin):
+    image = np.empty((n_y, n_x))
+    for i in range(0, len(scan_x)):
         cx = scan_x[i]
         cy = scan_y[i]
-        if (0 <= cx < n_x) and (0 <= cy <= n_y):
-            image[cy, cx] = np.sum(signal[i:i+n_bin])
+        if (0 <= cx < n_x) and (0 <= cy < n_y):
+            image[cy, cx] = np.sum(signal[i*n_bin:(i+1)*n_bin])
     return image
