@@ -23,7 +23,7 @@ and which Python API should be used
 - [ ] Stage control
 Serial port: figure out the port and the communication commands, use PySerial
 
-- [ ] Shutter control
+- [x] Shutter control
 Diego
 
 - [ ] Laser power control
