@@ -19,7 +19,7 @@ class SavingParameters:
 class StackSaver(Process):
     def __init__(self, data_queue, stop_signal: Event):
         super().__init__()
-        self.data_queue = data_queue()
+        self.data_queue = data_queue
         self.stop_signal = stop_signal
         self.stop_saving = Event()
         self.saving = False
