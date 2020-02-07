@@ -26,11 +26,16 @@ class TwopViewer(QWidget):
         self.timer.timeout.connect(self.update)
         self.timer.start()
         self.scanner.start()
+        self.first_image = True
 
     def update(self):
         try:
-            current_image = self.scanner.data_queue.get(timeout=0.001)
-            self.image_viewer.setImage(current_image)
+            current_image = - self.scanner.data_queue.get(timeout=0.001)
+            self.image_viewer.setImage(current_image,
+             autoLevels=self.first_image,
+             autoRange=self.first_image,
+             autoHistogramRange=self.first_image)
+            self.first_image = False
         except Empty:
             pass
 
