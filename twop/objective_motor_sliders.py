@@ -1,11 +1,21 @@
 from lightparam import Parametrized, Param
 import lightparam.gui.precisionslider as lp
 
-from lightparam.gui.precisionslider import PrecisionSingleSlider, SliderWidgetWithNumbers
+from lightparam.gui.precisionslider import (
+    PrecisionSingleSlider,
+    SliderWidgetWithNumbers,
+)
 import pyvisa
 import qdarkstyle
-from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QGridLayout,\
-    QDoubleSpinBox, QLabel, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget,
+    QHBoxLayout,
+    QGridLayout,
+    QDoubleSpinBox,
+    QLabel,
+    QGraphicsOpacityEffect,
+)
 from PyQt5.QtGui import QPainter, QColor, QPen
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QPoint
 
@@ -24,14 +34,16 @@ class MotorSlider(PrecisionSingleSlider):
         #     raise ValueError("Specify a motor and an axes")
 
     def update_pos_indicator(self):
-        self.axes_pos = self.motor.update_position(self.axes)  # actual position of the axes
+        self.axes_pos = self.motor.update_position(
+            self.axes
+        )  # actual position of the axes
 
     def find_axes(self, axes):
-        if axes == 'x':
+        if axes == "x":
             self.axes_pos = 1
-        elif axes == 'y':
+        elif axes == "y":
             self.axes_pos = 2
-        elif axes == 'z':
+        elif axes == "z":
             self.axes_pos = 3
 
         return axes
@@ -44,7 +56,7 @@ class MotorSlider(PrecisionSingleSlider):
         ps = self.padding_side
 
         qp.setPen(QColor(100, 100, 100))
-        qp.drawLine(ps, pt, w-ps, pt)
+        qp.drawLine(ps, pt, w - ps, pt)
         qp.setPen(Qt.NoPen)
         qp.setBrush(self.default_color)
 
@@ -52,8 +64,7 @@ class MotorSlider(PrecisionSingleSlider):
 
         self.triangle = self._equilateral_triangle_points((lv, pt))
 
-        for triangle, label in zip([self.triangle],
-                                   [1]):
+        for triangle, label in zip([self.triangle], [1]):
             if self.mouse_status == label:
                 qp.setBrush(self.highlight_color)
             else:
@@ -67,9 +78,6 @@ class MotorSlider(PrecisionSingleSlider):
         # qp.drawRect(triangle[0][0], 5, 3, -8)   # y pos hardcoded for the moment
 
 
-
-
-
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 win = QWidget()
@@ -80,5 +88,3 @@ slider_1 = MotorSlider()
 layout.addWidget(slider_1)
 win.show()
 app.exec_()
-
-
