@@ -1,4 +1,6 @@
 import pyvisa
+
+
 class MotorControl:
     def __init__(self, port, baudrate=921600, parity=pyvisa.constants.Parity.none, encoding="ascii"):
         self.baudrate = baudrate
@@ -14,13 +16,20 @@ class MotorControl:
                           encoding=encoding, timeout=10)
         self.update_position()
         
-    def update_position(self):
+    def update_position(self, axes=None):
+
         input_m = 'TP'
         output = self.motor.query(input_m)
         output = [float(s) for s in output.split(',')]
         self.x = output[0]
         self.y = output[1]
         self.z = output[2]
+        if axes is not None:
+            axes = self.find_axes(axes)
+            return output[axes]
+        else:
+            pass
+
     
     def move_abs(self, axes=None, displacement=0):
         axes = str(axes)
@@ -32,7 +41,7 @@ class MotorControl:
             pass
         self.update_position()
         
-    def  move_rel(self, axes=None, displacement=0):
+    def move_rel(self, axes=None, displacement=0):
         axes = str(axes)
         displacement = str(displacement)
         input_m = axes + 'PR' + displacement
@@ -43,7 +52,7 @@ class MotorControl:
         self.update_position()
         
     def set_units(self, units, axes=None):
-        axes = find_axes(axes)   
+        axes = self.find_axes(axes)
         if units == 'mm':
             units = 2
         elif units == 'um':
@@ -74,7 +83,9 @@ class MotorControl:
             axes = None
         return axes           
         
-        
+if __name__ == "__main__":
+    motor = MotorControl('COM1')
+    motor.update_position('mm')
                 
         
         
