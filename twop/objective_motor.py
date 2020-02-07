@@ -1,5 +1,4 @@
 import pyvisa
-
 class MotorControl:
     def __init__(self, port, baudrate=921600, parity=pyvisa.constants.Parity.none, encoding="ascii"):
         self.baudrate = baudrate
@@ -10,8 +9,9 @@ class MotorControl:
         self.y = None
         self.z = None
         rm = pyvisa.ResourceManager()
-        self.motor = rm.open_resource(port, baud_rate=baudrate, parity=parity,
-                          encoding=encoding)
+        self.motor = rm.open_resource(port,
+         baud_rate=baudrate, parity=parity,
+                          encoding=encoding, timeout=10)
         self.update_position()
         
     def update_position(self):
@@ -22,40 +22,43 @@ class MotorControl:
         self.y = output[1]
         self.z = output[2]
     
-    def move_abs(self, axes=None, displacement):
+    def move_abs(self, axes=None, displacement=0):
         axes = str(axes)
         displacement = str(displacement)
         input_m = axes + 'PA' + displacement
         try:
             self.motor.query(input_m)
-            except pyvisa.VisaIOError:
-                pass
+        except pyvisa.VisaIOError:
+            pass
         self.update_position()
         
-    def  move_rel(self, axes=None, displacement):
+    def  move_rel(self, axes=None, displacement=0):
         axes = str(axes)
         displacement = str(displacement)
         input_m = axes + 'PR' + displacement
         try:
             self.motor.query(input_m)
-            except pyvisa.VisaIOError:
+        except pyvisa.VisaIOError:
                 pass
         self.update_position()
         
-    def set_units(self, units, axes=None):   
+    def set_units(self, units, axes=None):
+        axes = find_axes(axes)   
         if units == 'mm':
             units = 2
-            elif units == 'um':
+        elif units == 'um':
                 units = 3
         if axes is None:
             for ax in range(3):
-                axes = str(axes)
-                input_m = ax + 'SN' + units
+                input_m = str(ax) + 'SN' + str(units)
                 self.motor.query(input_m)
         else:
             axes = str(axes)
-            input_m = axes + 'SN' + units
-            self.motor.query(input_m)
+            input_m = axes + 'SN' + str(units)
+            try:
+                self.motor.query(input_m)
+            except pyvisa.VisaIOError:
+                pass    
                 
     def get_units(self):
         pass
