@@ -1,12 +1,9 @@
-from lightparam import Parametrized, Param
-import lightparam.gui.precisionslider as lp
-from lightparam.gui.precisionslider import PrecisionSingleSlider, SliderWidgetWithNumbers
-import pyvisa
+from lightparam.gui.precisionslider import PrecisionSingleSlider
 import qdarkstyle
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QGridLayout, \
-    QDoubleSpinBox, QLabel, QAction
-from PyQt5.QtGui import QPainter, QColor, QPen, QCloseEvent
-from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QPoint, QTimer
+    QDoubleSpinBox, QLabel
+from PyQt5.QtGui import QColor
+from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
 from twop.objective_motor import MotorControl
 
 
@@ -15,10 +12,11 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
         super().__init__(*args, **kwargs)
         self.axes_pos = 0
         self.motor = motor
+        self.indicator_color = QColor(178.5, 0, 0)
         if motor is not None and axes is not None:
             self.axes = self.find_axes(axes)
             self.update_pos_indicator()
-        # else:
+        #else:
         #     raise ValueError("Specify a motor and an axes")
 
     def update_pos_indicator(self):
@@ -52,14 +50,11 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
             else:
                 qp.setBrush(self.default_color)
             qp.drawPolygon(*map(lambda point: QPointF(*point), triangle))
-        # self.update_pos_indicator()
-        # proj_pos = self.val_to_vis(self.axes_pos)
-        print(self.pos)
-        # qp.drawRect(proj_pos, triangle[0][0], 5, 3, -8)   # y pos hardcoded for the moment
-
-    def closeEvent(self, QCloseEvent):
-        print('closed')
-
+            # self.update_pos_indicator()
+            proj_pos = self.val_to_vis(self.pos) ##
+            qp.setPen(self.indicator_color)
+            qp.setBrush(self.indicator_color)
+            qp.drawRect(proj_pos - (3/2), triangle[0][1] - 2, 3, -6)
 
 class MotorSlider(QWidget):
     sig_changed = pyqtSignal(float)
@@ -105,7 +100,6 @@ class MotorSlider(QWidget):
 
     def update_values(self, val):
         self.spin_val_desired_pos.setValue(val)
-        print('update_values')
         self.sig_changed.emit(val)
 
     def update_slider(self, new_val):
@@ -120,13 +114,13 @@ class MotorSlider(QWidget):
         self.slider.update()
 
     def move_motor(self):
-        self.slider.motor.move_abs()
+        pass # self.slider.motor.move_abs()
 
     def closeEvent(self, event):
-        print('closed')
+        pass # self.slider.motor.go_home()
 
     def set_home(self, pos):
-        self.slider.motor.define_home(pos)
+        pass #self.slider.motor.define_home(pos)
 
 
 app = QApplication([])
