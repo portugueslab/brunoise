@@ -2,9 +2,9 @@ from multiprocessing import Event, Process, Queue
 import numpy as np
 
 import nidaqmx
-from nidaqmx.stream_readers import AnalogMultiChannelReader, AnalogSingleChannelReader
-from nidaqmx.stream_writers import AnalogMultiChannelWriter, AnalogSingleChannelWriter
-from nidaqmx.constants import Edge, AcquisitionType
+from nidaqmx.stream_readers import AnalogMultiChannelReader
+from nidaqmx.stream_writers import AnalogMultiChannelWriter
+from nidaqmx.constants import Edge, AcquisitionType, LineGrouping
 
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
@@ -95,7 +95,9 @@ class Scanner(Process):
         write_task.ao_channels.add_ao_voltage_chan(
             "Dev1/ao0:1", min_val=-10, max_val=10
         )
-
+        shutter_task.do_channels.add_do_chan(
+            "Dev1/port0/line1", line_grouping=LineGrouping.CHAN_PER_LINE
+        )
         # Set the timing of both to the onboard clock so that they are synchronised
         read_task.timing.cfg_samp_clk_timing(
             rate=self.sample_rate_in,
@@ -117,9 +119,6 @@ class Scanner(Process):
             "/Dev1/ao/StartTrigger", Edge.RISING
         )
 
-        shutter_task.do_channels.add_do_chan(
-            "Dev1/port0/line1", line_grouping=LineGrouping.CHAN_PER_LINE
-        )
 
     def wait_for_experiment_start(self):
         while not self.experiment_start_event.is_set():
@@ -179,8 +178,8 @@ class Scanner(Process):
             self.scanning_parameters = self.new_parameters
             self.compute_scan_parameters()
             with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:
-                self.toggle_shutter(shutter_task)
                 self.setup_tasks(read_task, write_task, shutter_task)
+                self.toggle_shutter(shutter_task)
                 self.scan_loop(
                     read_task,
                     write_task,
