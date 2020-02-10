@@ -4,12 +4,12 @@ from math import acos
 
 class LaserPowerControl:
 
-    def __init__(self, port, parity=pyvisa.constants.Parity.none, encoding="ascii"):
+    def __init__(self, port='COM5', parity=pyvisa.constants.Parity.none, encoding="ascii"):
         self.parity = parity
         self.encoding = encoding
         self.port = port
-        self.position = None
-        self.rm = pyvisa.ResourceManager
+        self.position = self.update_position()
+        self.rm = pyvisa.ResourceManager()
         self.rotatory_stage = self.rm.open_resource(
             port,
             parity=parity,
@@ -20,13 +20,12 @@ class LaserPowerControl:
         self.execute_home_search()
         self.get_upper_bound()
         self.get_lower_bound()
-        self.update_position()
 
     def update_position(self):
         device = '1'
         input_m = device + 'TP'
         output = self.rotatory_stage.query(input_m)
-        self.position = output
+        return output
 
     def execute_home_search(self):
         device = '1'
@@ -45,10 +44,10 @@ class LaserPowerControl:
         input_m = device + 'SL' + lower_bound
         self.rotatory_stage.query(input_m)
 
-    def move_abs(self, target_power_percent):
+    def move_abs(self, target_power_percent=0):
         target_position = self.unit_transformer(target_power_percent)
         device = '1'
-        input_m = device + 'SL' + str(target_position)
+        input_m = device + 'PA' + str(target_position)
         self.rotatory_stage.query(input_m)
 
     def terminate_connection(self):
