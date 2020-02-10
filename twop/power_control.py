@@ -9,49 +9,49 @@ class LaserPowerControl:
         self.parity = parity
         self.encoding = encoding
         self.port = port
-        self.rm = pyvisa.ResourceManager()
-        self.rotatory_stage = self.rm.open_resource(
+        rm = pyvisa.ResourceManager()
+        self.rotatory_stage = rm.open_resource(
             port,
-            baud_rate=baudrate,
-            parity=parity,
-            encoding=encoding,
-            open_timeout=10,
+            baud_rate=self.baudrate,
+            parity=self.parity,
+            encoding=self.encoding,
+            open_timeout=1
         )
         self.execute_home_search()
-        self.get_upper_bound()
-        self.get_lower_bound()
 
-    def update_position(self):
+    def get_position(self):
         device = '1'
         input_m = device + 'TP'
         output = self.rotatory_stage.query(input_m)
         return output
 
     def execute_home_search(self):
-        device = '1'
-        input_m = device + 'OR'
-        self.rotatory_stage.query(input_m)
+        device = 1
+        input_m = str(device) + 'OR'
+        self.rotatory_stage.write(input_m)
 
     def get_upper_bound(self):
-        device = '1'
+        device = 1
         upper_bound = ''
-        input_m = device + 'SR' + upper_bound
-        self.rotatory_stage.query(input_m)
+        input_m = str(device) + 'SR' + upper_bound
+        upper_bound = self.rotatory_stage.query(input_m)
+        return upper_bound
 
     def get_lower_bound(self):
-        device = '1'
+        device = 1
         lower_bound = ''
-        input_m = device + 'SL' + lower_bound
-        self.rotatory_stage.query(input_m)
+        input_m = str(device) + 'SL' + lower_bound
+        lower_bound = self.rotatory_stage.query(input_m)
+        return lower_bound
 
     def move_abs(self, target_power_percent=0):
         target_position = self.unit_transformer(target_power_percent)
-        device = '1'
-        input_m = device + 'PA' + str(target_position)
-        self.rotatory_stage.query(input_m)
+        device = 1
+        input_m = str(device) + 'PA' + str(target_position)
+        self.rotatory_stage.write(input_m)
 
     def terminate_connection(self):
-        self.rm.close()
+        self.rotatory_stage.close()
 
     @staticmethod
     def unit_transformer(
