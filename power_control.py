@@ -4,18 +4,18 @@ from math import acos
 
 class LaserPowerControl:
 
-    def __init__(self, port='COM5', parity=pyvisa.constants.Parity.none, encoding="ascii"):
+    def __init__(self, port='COM5', baudrate=921600, parity=pyvisa.constants.Parity.none, encoding="ascii"):
+        self.baudrate = baudrate
         self.parity = parity
         self.encoding = encoding
         self.port = port
-        self.position = self.update_position()
         self.rm = pyvisa.ResourceManager()
         self.rotatory_stage = self.rm.open_resource(
             port,
+            baud_rate=baudrate,
             parity=parity,
             encoding=encoding,
-            timeout=10,
-            resource_name='laser_power_control'
+            open_timeout=10,
         )
         self.execute_home_search()
         self.get_upper_bound()
