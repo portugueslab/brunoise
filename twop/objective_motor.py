@@ -3,12 +3,12 @@ import pyvisa
 
 class MotorControl:
     def __init__(
-            self,
-            port,
-            baudrate=921600,
-            parity=pyvisa.constants.Parity.none,
-            encoding="ascii",
-            axis=None
+        self,
+        port,
+        baudrate=921600,
+        parity=pyvisa.constants.Parity.none,
+        encoding="ascii",
+        axis=None,
     ):
         self.baudrate = baudrate
         self.parity = parity
@@ -84,11 +84,11 @@ class MotorControl:
 if __name__ == "__main__":
     motor = MotorControl("COM1")
     pos = motor.get_position()
-    print('set home at:', pos)
+    print("set home at:", pos)
     motor.define_home(pos)
     motor.move_rel(displacement=0.1)
     pos = motor.get_position()
-    print('move to:', pos)
+    print("move to:", pos)
     motor.go_home()
     pos = motor.get_position()
-    print('new position after method:', pos)
+    print("new position after method:", pos)

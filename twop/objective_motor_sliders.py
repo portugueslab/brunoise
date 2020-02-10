@@ -1,7 +1,13 @@
 from lightparam.gui.precisionslider import PrecisionSingleSlider
 import qdarkstyle
-from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QGridLayout, \
-    QDoubleSpinBox, QLabel
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget,
+    QHBoxLayout,
+    QGridLayout,
+    QDoubleSpinBox,
+    QLabel,
+)
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
 from twop.objective_motor import MotorControl
@@ -16,18 +22,18 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
         if motor is not None and axes is not None:
             self.axes = self.find_axes(axes)
             self.update_pos_indicator()
-        #else:
+        # else:
         #     raise ValueError("Specify a motor and an axes")
 
     def update_pos_indicator(self):
         pass  # self.axes_pos = self.motor.get_position(self.axes)  # actual position of the axes
 
     def find_axes(self, axes):
-        if axes == 'x':
+        if axes == "x":
             self.axes_pos = 1
-        elif axes == 'y':
+        elif axes == "y":
             self.axes_pos = 2
-        elif axes == 'z':
+        elif axes == "z":
             self.axes_pos = 3
         return axes
 
@@ -43,23 +49,23 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
         qp.setBrush(self.default_color)
         lv = self.val_to_vis(self.pos)
         self.triangle = self._equilateral_triangle_points((lv, pt))
-        for triangle, label in zip([self.triangle],
-                                   [1]):
+        for triangle, label in zip([self.triangle], [1]):
             if self.mouse_status == label:
                 qp.setBrush(self.highlight_color)
             else:
                 qp.setBrush(self.default_color)
             qp.drawPolygon(*map(lambda point: QPointF(*point), triangle))
             # self.update_pos_indicator()
-            proj_pos = self.val_to_vis(self.pos) ##
+            proj_pos = self.val_to_vis(self.pos)  ##
             qp.setPen(self.indicator_color)
             qp.setBrush(self.indicator_color)
-            qp.drawRect(proj_pos - (3/2), triangle[0][1] - 2, 3, -6)
+            qp.drawRect(proj_pos - (3 / 2), triangle[0][1] - 2, 3, -6)
+
 
 class MotorSlider(QWidget):
     sig_changed = pyqtSignal(float)
 
-    def __init__(self, min=0.0, max=1.0, units='mm', name=''):
+    def __init__(self, min=0.0, max=1.0, units="mm", name=""):
         super().__init__()
         self.name = name
         self.grid_layout = QGridLayout()
@@ -114,19 +120,19 @@ class MotorSlider(QWidget):
         self.slider.update()
 
     def move_motor(self):
-        pass # self.slider.motor.move_abs()
+        pass  # self.slider.motor.move_abs()
 
     def closeEvent(self, event):
-        pass # self.slider.motor.go_home()
+        pass  # self.slider.motor.go_home()
 
     def set_home(self, pos):
-        pass #self.slider.motor.define_home(pos)
+        pass  # self.slider.motor.define_home(pos)
 
 
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 # mot = MotorControl('COM1', axis='x')
-win = MotorSlider(name='x', min=0, max=2)
+win = MotorSlider(name="x", min=0, max=2)
 layout = QHBoxLayout()
 win.setLayout(layout)
 win.show()

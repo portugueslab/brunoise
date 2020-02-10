@@ -13,17 +13,20 @@ from lightparam import Param, Parametrized
 from lightparam.param_qt import ParametrizedQt
 from lightparam.gui import ParameterGui
 
+
 class ExperimentSettings(Parametrized):
     def __init__(self):
         super().__init__()
         self.n_frames = Param(10, (1, 10000))
         self.n_planes = Param(1, (1, 500))
 
+
 class ScanningSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
         self.resolution = Param(400, (40, 1024))
         self.voltage = Param(3.0, (0.3, 4.0))
+
 
 class TwopViewer(QWidget):
     def __init__(self):
@@ -54,11 +57,13 @@ class TwopViewer(QWidget):
 
     def update(self):
         try:
-            current_image = - self.scanner.data_queue.get(timeout=0.001)
-            self.image_viewer.setImage(current_image,
-             autoLevels=self.first_image,
-             autoRange=self.first_image,
-             autoHistogramRange=self.first_image)
+            current_image = -self.scanner.data_queue.get(timeout=0.001)
+            self.image_viewer.setImage(
+                current_image,
+                autoLevels=self.first_image,
+                autoRange=self.first_image,
+                autoHistogramRange=self.first_image,
+            )
             self.first_image = False
             if self.saving:
                 self.save_queue.put(current_image)
@@ -73,12 +78,14 @@ class TwopViewer(QWidget):
 
     def send_new_params(self):
         self.scanner.parameter_queue.put(
-            ScanningParameters(voltage_x=self.scanning_settings.voltage,
-                             voltage_y=self.scanning_settings.voltage,
-                               n_x=self.scanning_settings.resolution,
-                               n_y=self.scanning_settings.resolution)
-
+            ScanningParameters(
+                voltage_x=self.scanning_settings.voltage,
+                voltage_y=self.scanning_settings.voltage,
+                n_x=self.scanning_settings.resolution,
+                n_y=self.scanning_settings.resolution,
+            )
         )
+
 
 if __name__ == "__main__":
     app = QApplication([])
