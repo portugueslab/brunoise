@@ -21,6 +21,7 @@ class StackSaver(Process):
         super().__init__()
         self.data_queue = data_queue
         self.stop_signal = stop_signal
+        self.start_saving = Event()
         self.stop_saving = Event()
         self.saving = False
         self.saving_parameter_queue = Queue()
@@ -32,40 +33,44 @@ class StackSaver(Process):
 
     def run(self):
         while not self.stop_signal.is_set():
-            if self.saving:
+            if self.start_saving.is_set():
                 self.save_loop()
             else:
                 self.receive_save_parameters()
 
     def save_loop(self):
         self.dataset = EmptyH5Dataset(
-            root=self.save_parameters.ouput_dir,
+            root=self.save_parameters.output_dir,
             name="original",
-            shape_block=(*self.save_parameters.plane_size, 1, self.save_parameters.n_t),
+            shape_block=(self.save_parameters.n_t, 1, *self.save_parameters.plane_size),
             shape_full=(
-                *self.save_parameters.plane_size,
-                self.save_parameters.n_z,
                 self.save_parameters.n_t,
+                self.save_parameters.n_z,
+                *self.save_parameters.plane_size,
             ),
         )
+        i_received = 0
         self.i_in_plane = 0
         self.i_block = 0
-        self.current_data = np.empty(self.dataset.shape_block, dtype=np.uint16)
-        while self.i_received < self.save_parameters and not self.stop_signal.is_set():
+        self.current_data = np.empty(self.dataset.shape_block, dtype=np.float64)
+        n_total = self.save_parameters.n_t * self.save_parameters.n_z
+        while i_received < n_total and not self.stop_signal.is_set():
             try:
                 frame = self.data_queue.get(timeout=0.01)
                 self.fill_dataset(frame)
-                if self.i_in_plane == self.save_parameters.n_t - 1:
-                    self.complete_plane()
-
+                i_received += 1
             except Empty:
                 pass
         if self.stop_signal.is_set():
-            # TODO make the output dataset valid by discarding the unfinished plane and
-            # completing the dataset
-            pass
+            self.dataset.shape_full = (
+                (
+                    self.save_parameters.n_t,
+                    self.i_block,
+                    *self.save_parameters.plane_size,
+                ),
+            )
         self.dataset.finalize()
-        self.saving = False
+        self.start_saving.clear()
         self.stop_signal.clear()
         self.save_parameters = None
 
@@ -78,10 +83,14 @@ class StackSaver(Process):
     def fill_dataset(self, frame):
         self.current_data[self.i_in_plane, 0, :, :] = self.cast(frame)
         self.i_in_plane += 1
+        if self.i_in_plane == self.save_parameters.n_t:
+            self.complete_plane()
 
     def complete_plane(self):
+        print("Completing plane")
         fl.save(
-            self.save_parameters.output_dir / "{:04d}.h5".format(self.i_block),
+            Path(self.save_parameters.output_dir)
+            / "original/{:04d}.h5".format(self.i_block),
             {"stack_4D": self.current_data},
         )
         self.i_in_plane = 0
@@ -93,7 +102,7 @@ class StackSaver(Process):
         )
 
     def receive_save_parameters(self):
-        self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
-        if self.save_parameters is not None:
-            self.saving = True
-            self.i_received = 0
+        try:
+            self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
+        except Empty:
+            pass

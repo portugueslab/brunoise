@@ -90,7 +90,7 @@ class Scanner(Process):
     def setup_tasks(self, read_task, write_task, shutter_task):
         # Configure the channels
         read_task.ai_channels.add_ai_voltage_chan(
-            "Dev1/ai0:1", min_val=-5, max_val=5
+            "Dev1/ai0:1", min_val=-1, max_val=1
         )  # channels are 0: green PMT, 1 x galvo pos 2 y galvo pos
         write_task.ao_channels.add_ao_voltage_chan(
             "Dev1/ao0:1", min_val=-10, max_val=10
