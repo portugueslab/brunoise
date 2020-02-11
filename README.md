@@ -21,9 +21,6 @@ It is done in software. To be investigated
 
 ## Scanning
 
-- [ ] Proper scanning pattern
-(already almost complete)
-
 - [ ] Calculation of parameters
 basic algebra and looking up NI documentation
 (area, frequency, resolution, aspect ratio)
@@ -34,8 +31,6 @@ e.g. given the zoom and the target aspect ratio, calculate the scanning pattern
 readout from the PMT in a different frequency
 figuring out how the binning happens and photon counted or not
 managing the memory of the data
-
-(for proper and improper scanning pattern)
 
 - [ ] Parameters and state machine for scanning
 (preview, experiment running, shutter on or off)
@@ -66,35 +61,37 @@ HDF file(s): directly split datasets
     Can be done with anything flourescent and just moving it with the objective motor and checking with the caliper. 
     Physical units can then be displayed on the screen and used in the GUI for: zooming, drawing a scale bar, having a small measuring tool
 
+- [ ] Add the Pockel cell and write the extra binary patter from the parts of the scanning pattern not relevant 
+to the image
+
 ## GUI
 
 - [X] Image display
-version a) just display
-version b) ROI for live signal view
+    * [X] just display
+    * [ ] ROI for live signal view
 
 - [ ] Stage control
-version a) like labview (labels for current position and spin boxes to change)
-version b) nice sliders with markers for current position
+    * [ ] like labview (labels for current position and spin boxes to change)
+    * [ ] nice sliders with markers for current position
 
 - [ ] Experiment control
-version a) input duration from Stytra, and z shift
-version b) get all data from Stytra and just z shift
-start button
+    * [ ] input duration from Stytra, start button and z shift
+    * [ ] get all data from Stytra and just z shift
 
 - [ ] Scanning parameter gui
-version a) all manual parameters like in labview
-version b) intuitive parameters
-version c) zoom in and out of the image like google maps
+    * [X] all manual parameters like in labview
+    * [ ] intuitive parameters
+    * [ ] zoom in and out of the image like google maps
 
 - [ ] ZMQ synchronisation for Stytra (consult with Luigi, Ema)
 bits about networking and zeromq, look at lightsheet software
 
-- [ ] Diagnostics of scan patterns
-Each scan pattern causes image deformations depending on other paramteres. 
-Version (a) Provide a diagnostic view of the
- galvo position (also fix the physical cabling so it is not precarious) so that optimal parameters can be adjusted from the impulse response.
-Veriosn (b) Use the step response function (linearity can be probably assumed) to automatically calculate the optimal parameters for the scanning pattern. 
+- [ ] Diagnostics of scan patterns: each scan pattern causes image deformations depending on other paramteres. 
+    * [ ] Provide a diagnostic view of the galvo position (also fix the physical cabling so it is not precarious) so that optimal parameters can be adjusted from the impulse response.
+    * [ ] Use the step response function (linearity can be probably assumed) to automatically calculate the optimal parameters for the scanning pattern. 
 
 ## Further tasks
-- red PMT
-- ablations
+- [ ] red PMT
+- [ ] ablations
+- [ ] interlacing scanning pattern
+- [ ] spiral scanning pattern
