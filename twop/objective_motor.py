@@ -3,12 +3,12 @@ import pyvisa
 
 class MotorControl:
     def __init__(
-        self,
-        port,
-        baudrate=921600,
-        parity=pyvisa.constants.Parity.none,
-        encoding="ascii",
-        axes=None,
+            self,
+            port,
+            baudrate=921600,
+            parity=pyvisa.constants.Parity.none,
+            encoding="ascii",
+            axes=None,
     ):
         self.baudrate = baudrate
         self.parity = parity

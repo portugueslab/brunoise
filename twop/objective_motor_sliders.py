@@ -78,7 +78,7 @@ class MotorSlider(QWidget):
         self.setLayout(self.grid_layout)
         self.slider.sig_changed.connect(self.update_values)
         self.sig_changed.connect(self.slider.motor.move_abs)
-        # self.sig_end_session.connect(self.slider.motor.go_home)
+        self.sig_end_session.connect(self.slider.motor.go_home)
 
         self._timer_painter = QTimer(self)
         self._timer_painter.timeout.connect(self.update_actual_pos)
@@ -103,8 +103,8 @@ class MotorSlider(QWidget):
         self.spin_val_actual_pos.setValue(new_val)
         self.slider.update()
 
-    # def closeEvent(self, event):
-    #     self.sig_end_session.emit()
+    def closeEvent(self, event):
+        self.sig_end_session.emit()
 
 
 app = QApplication([])

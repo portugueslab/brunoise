@@ -9,7 +9,7 @@ class LaserPowerControl:
         baudrate=921600,
         parity=pyvisa.constants.Parity.none,
         encoding="ascii",
-        device=1
+        device=1,
     ):
         self.baudrate = baudrate
         self.parity = parity
