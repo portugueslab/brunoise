@@ -18,10 +18,7 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
         super().__init__(*args, **kwargs)
         self.motor = motor
         self.axes_pos = 0
-        self.indicator_color = QColor(178.5, 0, 0)
-
-    def update_pos_indicator(self):
-        self.axes_pos = self.motor.get_position()  # actual position of the axes
+        self.indicator_color = QColor(178, 0, 0)
 
     def drawWidget(self, qp):
         size = self.size()
@@ -59,9 +56,8 @@ class MotorSlider(QWidget):
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
         self.spin_val_desired_pos = QDoubleSpinBox()
         self.spin_val_actual_pos = QDoubleSpinBox()
-        self.slider = PrecisionSingleSliderMotorControl(min, max, motor)
+        self.slider = PrecisionSingleSliderMotorControl(min=min, max=max, motor=motor)
         value = self.slider.axes_pos
-        self.set_home(value)
         if value is None:
             value = (max - min) / 2
         self.spin_val_desired_pos.setValue(value)
@@ -82,15 +78,16 @@ class MotorSlider(QWidget):
         self.setLayout(self.grid_layout)
         self.slider.sig_changed.connect(self.update_values)
         self.sig_changed.connect(self.slider.motor.move_abs)
-        self.sig_end_session.connect(self.slider.motor.go_home)
+        # self.sig_end_session.connect(self.slider.motor.go_home)
 
         self._timer_painter = QTimer(self)
-        self._timer_painter.start(10)
         self._timer_painter.timeout.connect(self.update_actual_pos)
-        self._timer_painter.timeout.connect(self.slider.update_pos_indicator)
+        self._timer_painter.start(10)
 
     def update_actual_pos(self):
-        self.spin_val_actual_pos.setValue(self.motor.get_position())
+        pos = self.slider.motor.get_position()
+        self.spin_val_actual_pos.setValue(pos)
+        self.slider.axes_pos = pos
 
     def update_values(self, val):
         self.spin_val_desired_pos.setValue(val)
@@ -106,15 +103,13 @@ class MotorSlider(QWidget):
         self.spin_val_actual_pos.setValue(new_val)
         self.slider.update()
 
-    def closeEvent(self, event):
-        self.sig_end_session.emit()
-
-
+    # def closeEvent(self, event):
+    #     self.sig_end_session.emit()
 
 
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-mot = MotorControl('COM1', axes='x')
+mot = MotorControl('COM3', axes='x')
 win = MotorSlider(name="x", min=0, max=2, motor=mot)
 layout = QHBoxLayout()
 win.setLayout(layout)

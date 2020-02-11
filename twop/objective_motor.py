@@ -17,6 +17,7 @@ class MotorControl:
         self.axis = None
         axes = self.find_axis(axes)
         self.axes = str(axes)
+        self.home_pos = None
         rm = pyvisa.ResourceManager()
         self.motor = rm.open_resource(
             port, baud_rate=baudrate, parity=parity, encoding=encoding, timeout=10
@@ -51,8 +52,7 @@ class MotorControl:
         self.execute_motor(command)
 
     def define_home(self, pos):
-        command = self.axes + "DH" + str(pos)
-        self.execute_motor(command)
+        self.home_pos = self.get_position()
 
     def go_home(self):
         command = self.axes + "OR" + str(2)
@@ -91,7 +91,7 @@ class MotorControl:
 
     def end_session(self):
         # return to home position
-        self.go_home()
+        self.move_abs(self.home_pos)
 
         # motor off
         command = self.axes + "MF"
