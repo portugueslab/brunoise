@@ -110,11 +110,9 @@ class MotorSlider(QWidget):
         self.sig_end_session.emit()
 
 
-
-
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-mot = MotorControl('COM1', axes='x')
+mot = MotorControl("COM1", axes="x")
 win = MotorSlider(name="x", min=0, max=2, motor=mot)
 layout = QHBoxLayout()
 win.setLayout(layout)

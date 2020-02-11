@@ -32,7 +32,9 @@ class ScanningSettings(ParametrizedQt):
 class ExperimentRunner(QWidget):
     def __init__(self):
         super().__init__()
-        self.experiment_settings = ExperimentSettings() # TODO decouple, should not be in a GUI class
+        self.experiment_settings = (
+            ExperimentSettings()
+        )  # TODO decouple, should not be in a GUI class
         self.experiment_settings_gui = ParameterGui(self.experiment_settings)
         self.start_button = QPushButton("Start experiment")
 

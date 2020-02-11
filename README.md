@@ -43,13 +43,15 @@ managing the memory of the data
 - [ ] Figure out where the image reconstruction offset of -400 at 500000Hz output rate (probably different at other rates) comes from and calculate it automatically,
 or fix the timing so it is not needed. 
 
-- [ ]  Information streaming
+- [X]  Information streaming
 (Luigi or Vilim)
 Hardware control needs to run in a separate process from the GUI,
 yet has to be controllable through it and stream information back
 (queues, ArrayQueues)
 Separate process for the hardware control
 and communication (parameter and array queues)
+
+- [ ] Figure out input voltage scaling and optimal formats
 
 - [ ] Data saving
 HDF file(s): directly split datasets
