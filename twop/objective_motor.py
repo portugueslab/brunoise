@@ -74,10 +74,10 @@ class MotorControl:
         self.execute_motor(command)
 
         # set jog high speed to 0.2 for x,y or to 0.5 for z
-        if self.axes == '1' or self.axes == '2':
+        if self.axes == "1" or self.axes == "2":
             command = self.axes + "JH" + str(0.2)
             self.execute_motor(command)
-        elif self.axes == '3':
+        elif self.axes == "3":
             command = self.axes + "JH" + str(0.5)
             self.execute_motor(command)
 
