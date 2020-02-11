@@ -87,12 +87,12 @@ class LaserControlWidget(QWidget):
 
         self.main_layout = QHBoxLayout()
 
-        self.lbl_text = QLabel('Laser power')
+        self.lbl_text = QLabel("Laser power")
 
         self.spin_box = QSpinBox()
         self.spin_box.setMaximum(100)
         self.spin_box.setMinimum(0)
-        self.spin_box.setSuffix('%')
+        self.spin_box.setSuffix("%")
         # self.spin_box.cleanText()
         self.spin_box.setWrapping(True)
         self.spin_box.setValue(parameters["laser"]["power"])
@@ -101,7 +101,7 @@ class LaserControlWidget(QWidget):
         self.main_layout.addWidget(self.lbl_text)
         self.main_layout.addWidget(self.spin_box)
 
-        self.main_layout.setContentsMargins(0,0,0,0)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.setLayout(self.main_layout)
         self.previous_power = parameters["laser"]["power"]
@@ -119,5 +119,5 @@ def main():
     app.exec_()
 
 
-if __name__== '__main__':
+if __name__ == "__main__":
     main()
