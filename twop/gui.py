@@ -1,7 +1,8 @@
 from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout
 from scanning import Scanner, ScanningParameters
 from streaming_save import StackSaver
+from state import ExperimentState
 
 import pyqtgraph as pg
 import numpy as np
@@ -14,7 +15,7 @@ from lightparam.param_qt import ParametrizedQt
 from lightparam.gui import ParameterGui
 
 
-class ExperimentSettings(Parametrized):
+class ExperimentSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
         self.n_frames = Param(10, (1, 10000))
@@ -28,17 +29,34 @@ class ScanningSettings(ParametrizedQt):
         self.voltage = Param(3.0, (0.3, 4.0))
 
 
+class ExperimentRunner(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.experiment_settings = ExperimentSettings() # TODO decouple, should not be in a GUI class
+        self.experiment_settings_gui = ParameterGui(self.experiment_settings)
+        self.start_button = QPushButton("Start experiment")
+
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(self.experiment_settings_gui)
+        self.layout().addWidget(self.start_button)
+
+
 class TwopViewer(QWidget):
     def __init__(self):
         super().__init__()
-        self.scanner = Scanner()
+
+        # State variables
+        self.state = ExperimentState()
+
+        self.scanner = Scanner(self.state.experiment_start_event)
         self.save_queue = ArrayQueue()
         self.saver = StackSaver(self.save_queue, self.scanner.stop_event)
-        self.setLayout(QVBoxLayout())
+        self.setLayout(QHBoxLayout())
+        self.preview_layout = QVBoxLayout()
         self.image_viewer = pg.ImageView()
-        self.layout().addWidget(self.image_viewer)
+        self.preview_layout.addWidget(self.image_viewer)
         self.stop_button = QPushButton("Stop")
-        self.layout().addWidget(self.stop_button)
+        self.preview_layout.addWidget(self.stop_button)
         self.stop_button.clicked.connect(self.stop)
         self.image_viewer.setImage(np.ones((100, 100)))
         self.timer = QTimer()
@@ -49,11 +67,14 @@ class TwopViewer(QWidget):
 
         self.scanning_settings = ScanningSettings()
         self.scanning_settings_gui = ParameterGui(self.scanning_settings)
-        self.layout().addWidget(self.scanning_settings_gui)
+        self.preview_layout.addWidget(self.scanning_settings_gui)
         self.scanning_settings.sig_param_changed.connect(self.send_new_params)
 
-        # State variables
-        self.saving = False
+        self.experiment_widget = ExperimentRunner()
+        self.experiment_widget.start_button.clicked.connect(self.state.start_experiment)
+
+        self.layout().addLayout(self.preview_layout)
+        self.layout().addWidget(self.experiment_widget)
 
     def update(self):
         try:
@@ -65,7 +86,7 @@ class TwopViewer(QWidget):
                 autoHistogramRange=self.first_image,
             )
             self.first_image = False
-            if self.saving:
+            if self.state.saving:
                 self.save_queue.put(current_image)
         except Empty:
             pass

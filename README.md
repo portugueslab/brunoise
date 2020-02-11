@@ -12,11 +12,11 @@ Serial port: figure out the port and the communication commands, use PySerial
 - [X] Shutter control
 Diego
 
-- [ ] Laser power control
+- [X] Laser power control
 Diego
 
 - [ ] Photon-counted data
-Ask Ruben / Ot
+It is done in software. To be investigated
 
 
 ## Scanning

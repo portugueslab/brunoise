@@ -1,0 +1,5 @@
+from twop.power_control import LaserPowerControl
+
+Control = LaserPowerControl()
+Control.move_abs(20)
+Control.terminate_connection()
