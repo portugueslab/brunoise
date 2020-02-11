@@ -20,9 +20,6 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
         self.axes_pos = 0
         self.indicator_color = QColor(178, 0, 0)
 
-    def update_pos_indicator(self):
-        self.axes_pos = self.motor.get_position()  # actual position of the axes
-
     def drawWidget(self, qp):
         size = self.size()
         w = size.width()
@@ -84,12 +81,13 @@ class MotorSlider(QWidget):
         self.sig_end_session.connect(self.slider.motor.go_home)
 
         self._timer_painter = QTimer(self)
-        self._timer_painter.start(10)
         self._timer_painter.timeout.connect(self.update_actual_pos)
-        self._timer_painter.timeout.connect(self.slider.update_pos_indicator)
+        self._timer_painter.start(10)
 
     def update_actual_pos(self):
-        self.spin_val_actual_pos.setValue(self.motor.get_position())
+        pos = self.slider.motor.get_position()
+        self.spin_val_actual_pos.setValue(pos)
+        self.slider.axes_pos = pos
 
     def update_values(self, val):
         self.spin_val_desired_pos.setValue(val)
@@ -111,7 +109,7 @@ class MotorSlider(QWidget):
 
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-mot = MotorControl('COM6', axes='x')
+mot = MotorControl("COM3", axes="x")
 win = MotorSlider(name="x", min=0, max=2, motor=mot)
 layout = QHBoxLayout()
 win.setLayout(layout)

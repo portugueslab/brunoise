@@ -14,8 +14,10 @@ class MotorControl:
         self.parity = parity
         self.encoding = encoding
         self.port = port
+        self.axis = None
         axes = self.find_axis(axes)
         self.axes = str(axes)
+        self.home_pos = None
         rm = pyvisa.ResourceManager()
         self.motor = rm.open_resource(
             port, baud_rate=baudrate, parity=parity, encoding=encoding, timeout=10
@@ -24,10 +26,9 @@ class MotorControl:
 
     def get_position(self):
         input_m = self.axes + "TP"
-        position = self.motor.query(input_m)
-        # print(output)
-        # output = [float(s) for s in output.split(",")]
-        # position = output[int(self.axes)]
+        output = self.motor.query(input_m)
+        output = [float(s) for s in output.split(",")]
+        position = output[int(self.axis)]
         return position
 
     def move_abs(self, displacement=0.0):
@@ -51,8 +52,7 @@ class MotorControl:
         self.execute_motor(command)
 
     def define_home(self, pos):
-        command = self.axes + "DH" + str(pos)
-        self.execute_motor(command)
+        self.home_pos = self.get_position()
 
     def go_home(self):
         command = self.axes + "OR" + str(2)
@@ -74,10 +74,10 @@ class MotorControl:
         self.execute_motor(command)
 
         # set jog high speed to 0.2 for x,y or to 0.5 for z
-        if self.axes == '1' or self.axes == '2':
+        if self.axes == "1" or self.axes == "2":
             command = self.axes + "JH" + str(0.2)
             self.execute_motor(command)
-        elif self.axes == '3':
+        elif self.axes == "3":
             command = self.axes + "JH" + str(0.5)
             self.execute_motor(command)
 
@@ -87,16 +87,15 @@ class MotorControl:
 
         # define home position
         pos = self.get_position()
-        # self.define_home(pos)
+        self.define_home(pos)
 
     def end_session(self):
-        pass
-        # # return to home position
-        # self.go_home()
-        #
-        # # motor off
-        # command = self.axes + "MF"
-        # self.execute_motor(command)
+        # return to home position
+        self.move_abs(self.home_pos)
+
+        # motor off
+        command = self.axes + "MF"
+        self.execute_motor(command)
 
     @staticmethod
     def find_axis(axes):
@@ -110,13 +109,13 @@ class MotorControl:
 
 
 if __name__ == "__main__":
-    motor = MotorControl("COM6", axes='x')
+    motor = MotorControl("COM1")
     pos = motor.get_position()
     print("set home at:", pos)
     motor.define_home(pos)
     motor.move_rel(displacement=0.1)
     pos = motor.get_position()
     print("move to:", pos)
-    # motor.go_home()
+    motor.go_home()
     pos = motor.get_position()
     print("new position after method:", pos)

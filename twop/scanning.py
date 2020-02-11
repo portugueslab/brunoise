@@ -119,7 +119,6 @@ class Scanner(Process):
             "/Dev1/ao/StartTrigger", Edge.RISING
         )
 
-
     def wait_for_experiment_start(self):
         while not self.experiment_start_event.is_set():
             sleep(0.00001)
