@@ -30,7 +30,7 @@ class ScanningParameters:
     n_bin: int = 10
     sample_rate_out: float = 500000.0
     scanning_state: ScanningState = ScanningState.PREVIEW
-    reset_shutter: bool = False
+    reset_shutter: bool = True
 
 
 class Scanner(Process):
@@ -179,7 +179,8 @@ class Scanner(Process):
             self.compute_scan_parameters()
             with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task)
-                self.toggle_shutter(shutter_task)
+                if self.scanning_parameters.reset_shutter:
+                    self.toggle_shutter(shutter_task)
                 self.scan_loop(
                     read_task,
                     write_task,

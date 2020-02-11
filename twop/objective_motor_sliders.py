@@ -18,7 +18,7 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
         super().__init__(*args, **kwargs)
         self.motor = motor
         self.axes_pos = 0
-        self.indicator_color = QColor(178.5, 0, 0)
+        self.indicator_color = QColor(178, 0, 0)
 
     def update_pos_indicator(self):
         self.axes_pos = self.motor.get_position()  # actual position of the axes
@@ -59,9 +59,8 @@ class MotorSlider(QWidget):
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
         self.spin_val_desired_pos = QDoubleSpinBox()
         self.spin_val_actual_pos = QDoubleSpinBox()
-        self.slider = PrecisionSingleSliderMotorControl(min, max, motor)
+        self.slider = PrecisionSingleSliderMotorControl(min=min, max=max, motor=motor)
         value = self.slider.axes_pos
-        self.set_home(value)
         if value is None:
             value = (max - min) / 2
         self.spin_val_desired_pos.setValue(value)
@@ -110,11 +109,9 @@ class MotorSlider(QWidget):
         self.sig_end_session.emit()
 
 
-
-
 app = QApplication([])
 app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-mot = MotorControl('COM1', axes='x')
+mot = MotorControl('COM6', axes='x')
 win = MotorSlider(name="x", min=0, max=2, motor=mot)
 layout = QHBoxLayout()
 win.setLayout(layout)

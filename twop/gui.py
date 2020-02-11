@@ -1,5 +1,5 @@
 from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QSpacerItem
 from scanning import Scanner, ScanningParameters
 from streaming_save import StackSaver
 from state import ExperimentState
@@ -27,6 +27,9 @@ class ScanningSettings(ParametrizedQt):
         super().__init__()
         self.resolution = Param(400, (40, 1024))
         self.voltage = Param(3.0, (0.3, 4.0))
+        self.reset_shutter = Param(True)
+        self.binning = Param(10, (1, 50))
+        self.output_rate_khz = Param(500, (100, 2000))
 
 
 class ExperimentRunner(QWidget):
@@ -39,6 +42,7 @@ class ExperimentRunner(QWidget):
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.experiment_settings_gui)
         self.layout().addWidget(self.start_button)
+        self.layout().addItem(QSpacerItem(10, 10))
 
 
 class TwopViewer(QWidget):
@@ -104,6 +108,9 @@ class TwopViewer(QWidget):
                 voltage_y=self.scanning_settings.voltage,
                 n_x=self.scanning_settings.resolution,
                 n_y=self.scanning_settings.resolution,
+                sample_rate_out=self.scanning_settings.output_rate_khz*1000,
+                reset_shutter=self.scanning_settings.reset_shutter
+
             )
         )
 

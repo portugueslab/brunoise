@@ -14,7 +14,6 @@ class MotorControl:
         self.parity = parity
         self.encoding = encoding
         self.port = port
-        self.axis = None
         axes = self.find_axis(axes)
         self.axes = str(axes)
         rm = pyvisa.ResourceManager()
@@ -25,9 +24,10 @@ class MotorControl:
 
     def get_position(self):
         input_m = self.axes + "TP"
-        output = self.motor.query(input_m)
-        output = [float(s) for s in output.split(",")]
-        position = output[int(self.axis)]
+        position = self.motor.query(input_m)
+        # print(output)
+        # output = [float(s) for s in output.split(",")]
+        # position = output[int(self.axes)]
         return position
 
     def move_abs(self, displacement=0.0):
@@ -87,15 +87,16 @@ class MotorControl:
 
         # define home position
         pos = self.get_position()
-        self.define_home(pos)
+        # self.define_home(pos)
 
     def end_session(self):
-        # return to home position
-        self.go_home()
-
-        # motor off
-        command = self.axes + "MF"
-        self.execute_motor(command)
+        pass
+        # # return to home position
+        # self.go_home()
+        #
+        # # motor off
+        # command = self.axes + "MF"
+        # self.execute_motor(command)
 
     @staticmethod
     def find_axis(axes):
@@ -109,13 +110,13 @@ class MotorControl:
 
 
 if __name__ == "__main__":
-    motor = MotorControl("COM1")
+    motor = MotorControl("COM6", axes='x')
     pos = motor.get_position()
     print("set home at:", pos)
     motor.define_home(pos)
     motor.move_rel(displacement=0.1)
     pos = motor.get_position()
     print("move to:", pos)
-    motor.go_home()
+    # motor.go_home()
     pos = motor.get_position()
     print("new position after method:", pos)
