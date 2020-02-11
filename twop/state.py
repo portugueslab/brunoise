@@ -13,4 +13,6 @@ class ExperimentState:
         pass
 
     def close_setup(self):
+        # Return Newport rotatory servo to "Not referenced" AKA stand-by state
+        self.laser.terminate_connection()
         pass
