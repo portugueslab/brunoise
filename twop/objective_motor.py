@@ -28,20 +28,17 @@ class MotorControl:
         input_m = self.axes + "TP"
         output = self.motor.query(input_m)
         output = [float(s) for s in output.split(",")]
-        position = output[int(self.axis)]
-        return position
+        return output[0]
 
-    def move_abs(self, displacement=0.0):
+    def move_abs(self, displacement):
         displacement = str(displacement)
         command = self.axes + "PA" + displacement
         self.execute_motor(command)
-        self.pos = self.get_position()
 
     def move_rel(self, displacement=0.0):
         displacement = str(displacement)
         command = self.axes + "PR" + displacement
         self.execute_motor(command)
-        self.pos = self.get_position()
 
     def set_units(self, units):
         if units == "mm":
@@ -51,7 +48,7 @@ class MotorControl:
         command = self.axes + "SN" + str(units)
         self.execute_motor(command)
 
-    def define_home(self, pos):
+    def define_home(self):
         self.home_pos = self.get_position()
 
     def go_home(self):
@@ -86,12 +83,14 @@ class MotorControl:
         self.execute_motor(command)
 
         # define home position
-        pos = self.get_position()
-        self.define_home(pos)
+        self.define_home()
+
+        # set mm as unit
+        self.set_units('mm')
 
     def end_session(self):
         # return to home position
-        self.move_abs(self.home_pos)
+        # self.move_abs(self.home_pos)
 
         # motor off
         command = self.axes + "MF"
@@ -109,13 +108,17 @@ class MotorControl:
 
 
 if __name__ == "__main__":
-    motor = MotorControl("COM1")
+    motor = MotorControl("COM6", axes="x")
     pos = motor.get_position()
-    print("set home at:", pos)
-    motor.define_home(pos)
-    motor.move_rel(displacement=0.1)
+    print("start pos:", pos)
+    new_pos = 0.01
+    print("new pos:", new_pos)
+    # motor.move_abs(displacement=new_pos)
+    try:
+        motor.motor.query('1PA0.01')
+    except pyvisa.VisaIOError:
+        pass
+    # print(mx)
     pos = motor.get_position()
-    print("move to:", pos)
-    motor.go_home()
-    pos = motor.get_position()
-    print("new position after method:", pos)
+    print("moved to:", pos)
+
