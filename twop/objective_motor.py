@@ -86,7 +86,7 @@ class MotorControl:
         self.define_home()
 
         # set mm as unit
-        self.set_units('mm')
+        self.set_units("mm")
 
     def end_session(self):
         # return to home position
@@ -115,10 +115,9 @@ if __name__ == "__main__":
     print("new pos:", new_pos)
     # motor.move_abs(displacement=new_pos)
     try:
-        motor.motor.query('1PA0.01')
+        motor.motor.query("1PA0.01")
     except pyvisa.VisaIOError:
         pass
     # print(mx)
     pos = motor.get_position()
     print("moved to:", pos)
-

@@ -58,13 +58,11 @@ class MotorSlider(QWidget):
         self.spin_val_desired_pos = QDoubleSpinBox()
         self.spin_val_actual_pos = QDoubleSpinBox()
         value = motor.home_pos
-        min= value - 1
+        min = value - 1
         max = value + 1
-        self.slider = PrecisionSingleSliderMotorControl(default_value=value,
-                                                        min=min,
-                                                        max=max,
-                                                        pos=motor.home_pos,
-                                                        motor=motor)
+        self.slider = PrecisionSingleSliderMotorControl(
+            default_value=value, min=min, max=max, pos=motor.home_pos, motor=motor
+        )
         self.spin_val_desired_pos.setValue(value)
         self.spin_val_actual_pos.setValue(value)
         self.spin_val_desired_pos.setRange(min, max)

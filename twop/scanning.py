@@ -28,9 +28,14 @@ class ScanningParameters:
     voltage_x: float = 3
     voltage_y: float = 3
     n_bin: int = 10
+    mystery_offset = -400
     sample_rate_out: float = 500000.0
     scanning_state: ScanningState = ScanningState.PREVIEW
     reset_shutter: bool = True
+
+
+def compute_waveform(sp: ScanningParameters):
+    return scanning_patterns.simple_scanning_pattern(sp.n_x, sp.n_y, 10, 100, True)
 
 
 class Scanner(Process):
@@ -59,9 +64,7 @@ class Scanner(Process):
 
         self.n_x = self.scanning_parameters.n_x
         self.n_y = self.scanning_parameters.n_y
-        self.raw_x, self.raw_y = scanning_patterns.simple_scanning_pattern(
-            self.n_x, self.n_y, 10, 300, True
-        )
+        self.raw_x, self.raw_y = compute_waveform(self.scanning_parameters)
         self.pos_x = (
             self.raw_x * ((self.extent_x[1] - self.extent_x[0]) / self.n_x)
             + self.extent_x[0]
@@ -83,9 +86,7 @@ class Scanner(Process):
 
         self.write_signals = np.stack([self.pos_x, self.pos_y], 0)
         self.read_buffer = np.zeros((2, self.n_samples_in))
-        self.mystery_offset = (
-            -400
-        )  # an offset between reading and writing which seems constant
+        self.mystery_offset = self.scanning_parameters.mystery_offset
 
     def setup_tasks(self, read_task, write_task, shutter_task):
         # Configure the channels
@@ -130,27 +131,24 @@ class Scanner(Process):
         first_write = True
         while not self.stop_event.is_set():
             # The first write has to be defined before the task starts
-            writer.write_many_sample(self.write_signals)
-            if experiment_running:
-                self.wait_for_experiment_start()
-            if first_write:
-                read_task.start()
-                write_task.start()
-                first_write = False
-            reader.read_many_sample(
-                self.read_buffer,
-                number_of_samples_per_channel=self.n_samples_in,
-                timeout=1,
-            )
-            self.data_queue.put(
-                scanning_patterns.reconstruct_image_pattern(
-                    np.roll(self.read_buffer[0, :], self.mystery_offset),
-                    self.raw_x,
-                    self.raw_y,
-                    (self.n_y, self.n_x),
-                    self.n_bin,
+            try:
+                writer.write_many_sample(self.write_signals)
+                if experiment_running:
+                    self.wait_for_experiment_start()
+                if first_write:
+                    read_task.start()
+                    write_task.start()
+                    first_write = False
+                reader.read_many_sample(
+                    self.read_buffer,
+                    number_of_samples_per_channel=self.n_samples_in,
+                    timeout=1,
                 )
-            )
+            except nidaqmx.DaqError as e:
+                print(e)
+                break
+
+            self.data_queue.put(self.read_buffer[0, :])
             try:
                 self.new_parameters = self.parameter_queue.get(timeout=0.0001)
                 if self.new_parameters != self.scanning_parameters:
@@ -159,7 +157,6 @@ class Scanner(Process):
                 pass
 
     def toggle_shutter(self, shutter_task):
-        shutter_task.write(False, auto_start=True)
         shutter_task.write(True, auto_start=True)
         shutter_task.write(False, auto_start=True)
         sleep(0.05)
@@ -187,3 +184,35 @@ class Scanner(Process):
                     == ScanningState.EXPERIMENT_RUNNING,
                 )
                 self.toggle_shutter(shutter_task)
+
+
+class ImageReconstructor(Process):
+    def __init__(self, data_in_queue, stop_event, max_mbytes_queue=300):
+        super().__init__()
+        self.data_in_queue = data_in_queue
+        self.parameter_queue = Queue()
+        self.stop_event = stop_event
+        self.output_queue = ArrayQueue(max_mbytes_queue)
+        self.scanning_parameters = None
+        self.waveform = None
+
+    def run(self):
+        while not self.stop_event.is_set():
+            try:
+                self.scanning_parameters = self.parameter_queue.get(timeout=0.001)
+                self.waveform = compute_waveform(self.scanning_parameters)
+            except Empty:
+                pass
+
+            try:
+                image = self.data_in_queue.get(timeout=0.001)
+                self.output_queue.put(
+                    scanning_patterns.reconstruct_image_pattern(
+                        np.roll(image, self.scanning_parameters.mystery_offset),
+                        *self.waveform,
+                        (self.scanning_parameters.n_y, self.scanning_parameters.n_y),
+                        self.scanning_parameters.n_bin,
+                    )
+                )
+            except Empty:
+                pass
