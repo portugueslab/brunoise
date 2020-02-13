@@ -66,8 +66,8 @@ class MotorControl:
         command = self.axes + "MO"
         self.execute_motor(command)
 
-        # set trajectory mode to jog
-        command = self.axes + "TJ" + str(3)
+        # set trajectory mode to trapezoidal
+        command = self.axes + "TJ" + str(1)
         self.execute_motor(command)
 
         # set jog high speed to 0.2 for x,y or to 0.5 for z
@@ -108,17 +108,10 @@ class MotorControl:
 
 
 if __name__ == "__main__":
-    motor = MotorControl("COM6", axes="x")
+    motor = MotorControl("COM5", axes="x")
     pos = motor.get_position()
     print("start pos:", pos)
     new_pos = 0.01
     print("new pos:", new_pos)
-    # motor.move_abs(displacement=new_pos)
-    try:
-        motor.motor.query('1PA0.01')
-    except pyvisa.VisaIOError:
-        pass
-    # print(mx)
-    pos = motor.get_position()
-    print("moved to:", pos)
+    motor.move_abs(displacement=new_pos)
 
