@@ -3,12 +3,12 @@ import pyvisa
 
 class MotorControl:
     def __init__(
-        self,
-        port,
-        baudrate=921600,
-        parity=pyvisa.constants.Parity.none,
-        encoding="ascii",
-        axes=None,
+            self,
+            port,
+            baudrate=921600,
+            parity=pyvisa.constants.Parity.none,
+            encoding="ascii",
+            axes=None,
     ):
         self.baudrate = baudrate
         self.parity = parity
@@ -86,7 +86,7 @@ class MotorControl:
         self.define_home()
 
         # set mm as unit
-        self.set_units('mm')
+        self.set_units("mm")
 
     def end_session(self):
         # return to home position
@@ -114,4 +114,9 @@ if __name__ == "__main__":
     new_pos = 0.01
     print("new pos:", new_pos)
     motor.move_abs(displacement=new_pos)
-
+    try:
+        motor.motor.query("1PA0.01")
+    except pyvisa.VisaIOError:
+        pass
+    pos = motor.get_position()
+    print("moved to:", pos)

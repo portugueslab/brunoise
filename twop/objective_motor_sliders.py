@@ -13,6 +13,29 @@ from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
 from twop.objective_motor import MotorControl
 
 
+class MotionControlXYZ(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setLayout(QGridLayout())
+
+        mot_x = MotorControl("COM5", axes='x')
+        self.win_x = MotorSlider(name='x', motor=mot_x)
+        self.layout().addWidget(self.win_x)
+
+        mot_y = MotorControl("COM5", axes='y')
+        self.win_y = MotorSlider(name='y', motor=mot_y)
+        self.layout().addWidget(self.win_y)
+
+        mot_z = MotorControl("COM5", axes='z')
+        self.win_z = MotorSlider(name='z', motor=mot_z)
+        self.layout().addWidget(self.win_z)
+
+    def end_session(self):
+        self.win_x.close_event()
+        self.win_y.close_event()
+        self.win_z.close_event()
+
+
 class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
     def __init__(self, *args, motor=None, pos=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -68,6 +91,15 @@ class MotorSlider(QWidget):
 
         self.spin_val_desired_pos.setRange(min_range, max_range)
         self.spin_val_actual_pos.setRange(min_range, max_range)
+        min = value - 1
+        max = value + 1
+        self.slider = PrecisionSingleSliderMotorControl(
+            default_value=value, min=min, max=max, pos=motor.home_pos, motor=motor
+        )
+        self.spin_val_desired_pos.setValue(value)
+        self.spin_val_actual_pos.setValue(value)
+        self.spin_val_desired_pos.setRange(min, max)
+        self.spin_val_actual_pos.setRange(min, max)
         self.spin_val_desired_pos.setDecimals(4)
         self.spin_val_actual_pos.setDecimals(4)
         self.spin_val_desired_pos.setSingleStep(0.001)
@@ -77,10 +109,10 @@ class MotorSlider(QWidget):
         self.spin_val_desired_pos.valueChanged.connect(self.update_slider)
         self.label_name = QLabel(name)
         self.label_name.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.grid_layout.addWidget(self.label_name, 0, 0)
-        self.grid_layout.addWidget(self.spin_val_actual_pos, 0, 1)
-        self.grid_layout.addWidget(self.spin_val_desired_pos, 2, 1)
-        self.grid_layout.addWidget(self.slider, 1, 0, 1, 2)
+        self.grid_layout.addWidget(self.label_name, 0, 1)
+        self.grid_layout.addWidget(self.spin_val_actual_pos, 0, 0)
+        self.grid_layout.addWidget(self.spin_val_desired_pos, 1, 0)
+        self.grid_layout.addWidget(self.slider, 1, 1, 1, 2)
         self.setLayout(self.grid_layout)
         self.slider.sig_changed.connect(self.update_values)
         self.sig_changed.connect(self.slider.motor.move_abs)
@@ -109,27 +141,14 @@ class MotorSlider(QWidget):
         self.spin_val_actual_pos.setValue(new_val)
         self.slider.update()
 
-    def closeEvent(self, event):
+    def close_event(self):
         self.sig_end_session.emit()
 
 
-app = QApplication([])
-app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-axes = 'x'
-mot_x = MotorControl("COM5", axes=axes)
-win_x = MotorSlider(name=axes, motor=mot_x)
-
-axes = 'y'
-mot_y = MotorControl("COM5", axes=axes)
-win_y = MotorSlider(name=axes, motor=mot_y)
-
-axes = 'z'
-mot_z = MotorControl("COM5", axes=axes)
-win_z = MotorSlider(name=axes, motor=mot_z)
-
-layout = QHBoxLayout()
-win_x.show()
-win_y.show()
-win_z.show()
-
-app.exec_()
+if __name__ == '__main__':
+    app = QApplication([])
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+    layout = QHBoxLayout()
+    win = MotionControlXYZ()
+    win.show()
+    app.exec_()
