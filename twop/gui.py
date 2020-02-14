@@ -16,6 +16,8 @@ import qdarkstyle
 from queue import Empty
 from lightparam.gui import ParameterGui
 
+from twop.objective_motor_sliders import MotionControlXYZ
+
 
 class ExperimentRunner(QWidget):
     def __init__(self, experiment_settings):
@@ -51,6 +53,12 @@ class TwopViewer(QWidget):
         self.layout().addLayout(self.preview_layout)
         self.layout().addWidget(self.experiment_widget)
 
+        x = self.state.motors['x']
+        y = self.state.motors['y']
+        z = self.state.motors['z']
+        self.motor_control_slider = MotionControlXYZ(x, y, z)
+        self.layout().addWidget(self.motor_control_slider)
+
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start()
@@ -70,6 +78,7 @@ class TwopViewer(QWidget):
 
     def closeEvent(self, event) -> None:
         self.state.close_setup()
+        self.motor_control_slider.end_session()
         event.accept()
 
 

@@ -14,7 +14,6 @@ class MotorControl:
         self.parity = parity
         self.encoding = encoding
         self.port = port
-        self.axis = None
         axes = self.find_axis(axes)
         self.axes = str(axes)
         self.home_pos = None
@@ -23,16 +22,22 @@ class MotorControl:
             port, baud_rate=baudrate, parity=parity, encoding=encoding, timeout=10
         )
         self.start_session()
+        self.connection = True
 
     def get_position(self):
         input_m = self.axes + "TP"
-        output = self.motor.query(input_m)
-        output = [float(s) for s in output.split(",")]
-        return output[0]
+        try:
+            output = self.motor.query(input_m)
+            output = [float(s) for s in output.split(",")]
+            return output[0]
 
-    def move_abs(self, displacement):
-        displacement = str(displacement)
-        command = self.axes + "PA" + displacement
+        except pyvisa.VisaIOError:
+            print(f'Error get position axes number {self.axes} ')
+            return None
+
+    def move_abs(self, coordinate):
+        coordinate = str(coordinate)
+        command = self.axes + "PA" + coordinate
         self.execute_motor(command)
 
     def move_rel(self, displacement=0.0):
@@ -89,12 +94,12 @@ class MotorControl:
         self.set_units("mm")
 
     def end_session(self):
-        # return to home position
-        # self.move_abs(self.home_pos)
-
         # motor off
         command = self.axes + "MF"
         self.execute_motor(command)
+        # close connection
+        self.motor.close()
+        self.connection = False
 
     @staticmethod
     def find_axis(axes):

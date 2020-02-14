@@ -1,6 +1,16 @@
 import pyvisa
 from math import acos
-
+import qdarkstyle
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget,
+    QHBoxLayout,
+    QGridLayout,
+    QDoubleSpinBox,
+    QLabel,
+)
+from PyQt5.QtGui import QColor
+from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTime
 
 class LaserPowerControl:
     def __init__(
@@ -10,7 +20,10 @@ class LaserPowerControl:
         parity=pyvisa.constants.Parity.none,
         encoding="ascii",
         device=1,
+        *args,
+        **kwargs
     ):
+        super().__init__(*args, **kwargs)
         self.baudrate = baudrate
         self.parity = parity
         self.encoding = encoding
@@ -114,7 +127,10 @@ class LaserControlWidget(QWidget):
 
 def main():
     app = QApplication([])
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     w = LaserControlWidget()
+    layout = QHBoxLayout()
+    w.setLayout(layout)
     w.show()
     app.exec_()
 

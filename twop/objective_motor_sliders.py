@@ -8,25 +8,22 @@ from PyQt5.QtWidgets import (
     QDoubleSpinBox,
     QLabel,
 )
-from PyQt5.QtGui import QColor
+
+from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
-from twop.objective_motor import MotorControl
 
 
 class MotionControlXYZ(QWidget):
-    def __init__(self):
+    def __init__(self, mot_x, mot_y, mot_z):
         super().__init__()
         self.setLayout(QGridLayout())
 
-        mot_x = MotorControl("COM5", axes='x')
         self.win_x = MotorSlider(name='x', motor=mot_x)
         self.layout().addWidget(self.win_x)
 
-        mot_y = MotorControl("COM5", axes='y')
         self.win_y = MotorSlider(name='y', motor=mot_y)
         self.layout().addWidget(self.win_y)
 
-        mot_z = MotorControl("COM5", axes='z')
         self.win_z = MotorSlider(name='z', motor=mot_z)
         self.layout().addWidget(self.win_z)
 
@@ -112,7 +109,7 @@ class MotorSlider(QWidget):
         self.grid_layout.addWidget(self.label_name, 0, 1)
         self.grid_layout.addWidget(self.spin_val_actual_pos, 0, 0)
         self.grid_layout.addWidget(self.spin_val_desired_pos, 1, 0)
-        self.grid_layout.addWidget(self.slider, 1, 1, 1, 2)
+        self.grid_layout.addWidget(self.slider, 1, 1, 1, 5)
         self.setLayout(self.grid_layout)
         self.slider.sig_changed.connect(self.update_values)
         self.sig_changed.connect(self.slider.motor.move_abs)
@@ -120,12 +117,14 @@ class MotorSlider(QWidget):
 
         self._timer_painter = QTimer(self)
         self._timer_painter.timeout.connect(self.update_actual_pos)
-        self._timer_painter.start(1)
+        self._timer_painter.start()
 
     def update_actual_pos(self):
-        pos = self.slider.motor.get_position()
-        self.spin_val_actual_pos.setValue(pos)
-        self.slider.axes_pos = pos
+        if self.slider.motor.connection is True:
+            pos = self.slider.motor.get_position()
+            if pos is not None:
+                self.spin_val_actual_pos.setValue(pos)
+                self.slider.axes_pos = pos
 
     def update_values(self, val):
         self.spin_val_desired_pos.setValue(val)
