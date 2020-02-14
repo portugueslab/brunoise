@@ -26,6 +26,11 @@ basic algebra and looking up NI documentation
 (area, frequency, resolution, aspect ratio)
 on paper and python functions
 e.g. given the zoom and the target aspect ratio, calculate the scanning pattern
+     * [ ] Calculate single plane duration
+     * [ ] See how the paramters have to be adjusted (scanning stopped) to get an _exact_ plane duration
+     * [ ] Decide on parameters for user to input for scanning and calculate the rest from those (e.g. resolution, aspect ratio, frame rate)
+     * [ ] Investigate what paramters are possible in the NI system for input and output rates
+     * [ ] Look at galvo responses to see how far the speed can be pushed before they fly out or burn
 
 - [X] Image reconstruction and acquisition
 readout from the PMT in a different frequency
@@ -68,7 +73,8 @@ to the image
 
 - [X] Image display
     * [X] just display
-    * [ ] ROI for live signal view
+    * [ ] ROI for live signal view (Hagar)
+    * [ ] Temporal averaging
 
 - [X] Stage control
     * [X] like labview (labels for current position and spin boxes to change)
@@ -80,11 +86,11 @@ to the image
 
 - [ ] Scanning parameter gui
     * [X] all manual parameters like in labview
-    * [ ] intuitive parameters
+    * [ ] intuitive parameters (Diego)
     * [ ] zoom in and out of the image like google maps
 
 - [ ] ZMQ synchronisation for Stytra (consult with Luigi, Ema)
-bits about networking and zeromq, look at lightsheet software
+bits about networking and zeromq, look at lightsheet software (Ema)
 
 - [ ] Diagnostics of scan patterns: each scan pattern causes image deformations depending on other paramteres. 
     * [ ] Provide a diagnostic view of the galvo position (also fix the physical cabling so it is not precarious) so that optimal parameters can be adjusted from the impulse response.
