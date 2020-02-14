@@ -70,9 +70,9 @@ to the image
     * [X] just display
     * [ ] ROI for live signal view
 
-- [ ] Stage control
-    * [ ] like labview (labels for current position and spin boxes to change)
-    * [ ] nice sliders with markers for current position
+- [X] Stage control
+    * [X] like labview (labels for current position and spin boxes to change)
+    * [X] nice sliders with markers for current position
 
 - [ ] Experiment control
     * [ ] input duration from Stytra, start button and z shift

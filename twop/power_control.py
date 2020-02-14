@@ -1,16 +1,7 @@
 import pyvisa
 from math import acos
 import qdarkstyle
-from PyQt5.QtWidgets import (
-    QApplication,
-    QWidget,
-    QHBoxLayout,
-    QGridLayout,
-    QDoubleSpinBox,
-    QLabel,
-)
-from PyQt5.QtGui import QColor
-from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTime
+from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QSpinBox, QLabel
 
 
 class LaserPowerControl:
@@ -90,51 +81,3 @@ class LaserPowerControl:
             power_units / amplitude - vertical_shift
         ) / frequency
         return target_units
-
-
-class LaserControlWidget(QWidget):
-    def __init__(self, parameters):
-        super().__init__()
-
-        self.laser = LaserPowerControl()
-        self.parameters = parameters
-
-        self.main_layout = QHBoxLayout()
-
-        self.lbl_text = QLabel("Laser power")
-
-        self.spin_box = QSpinBox()
-        self.spin_box.setMaximum(100)
-        self.spin_box.setMinimum(0)
-        self.spin_box.setSuffix("%")
-        # self.spin_box.cleanText()
-        self.spin_box.setWrapping(True)
-        self.spin_box.setValue(parameters["laser"]["power"])
-        self.spin_box.valueChanged.connect(self.update_power)
-
-        self.main_layout.addWidget(self.lbl_text)
-        self.main_layout.addWidget(self.spin_box)
-
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.setLayout(self.main_layout)
-        self.previous_power = parameters["laser"]["power"]
-
-    def update_power(self):
-        self.laser.move_abs(self.spin_box.value())
-        self.previous_power = self.spin_box.value()
-        self.parameters["laser"].update(dict(power=self.spin_box.value()))
-
-
-def main():
-    app = QApplication([])
-    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    w = LaserControlWidget()
-    layout = QHBoxLayout()
-    w.setLayout(layout)
-    w.show()
-    app.exec_()
-
-
-if __name__ == "__main__":
-    main()

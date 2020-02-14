@@ -78,7 +78,7 @@ class TwopViewer(QWidget):
 
     def closeEvent(self, event) -> None:
         self.state.close_setup()
-        self.motor_control_slider.end_session()
+
         event.accept()
 
 
