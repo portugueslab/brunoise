@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTime
 
+
 class LaserPowerControl:
     def __init__(
         self,

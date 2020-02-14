@@ -18,13 +18,13 @@ class MotionControlXYZ(QWidget):
         super().__init__()
         self.setLayout(QGridLayout())
 
-        self.win_x = MotorSlider(name='x', motor=mot_x)
+        self.win_x = MotorSlider(name="x", motor=mot_x)
         self.layout().addWidget(self.win_x)
 
-        self.win_y = MotorSlider(name='y', motor=mot_y)
+        self.win_y = MotorSlider(name="y", motor=mot_y)
         self.layout().addWidget(self.win_y)
 
-        self.win_z = MotorSlider(name='z', motor=mot_z)
+        self.win_z = MotorSlider(name="z", motor=mot_z)
         self.layout().addWidget(self.win_z)
 
     def end_session(self):
@@ -80,11 +80,13 @@ class MotorSlider(QWidget):
         value = motor.home_pos
         min_range = value - 3
         max_range = value + 3
-        self.slider = PrecisionSingleSliderMotorControl(default_value=value,
-                                                        min=min_range,
-                                                        max=max_range,
-                                                        pos=motor.home_pos,
-                                                        motor=motor)
+        self.slider = PrecisionSingleSliderMotorControl(
+            default_value=value,
+            min=min_range,
+            max=max_range,
+            pos=motor.home_pos,
+            motor=motor,
+        )
 
         self.spin_val_desired_pos.setRange(min_range, max_range)
         self.spin_val_actual_pos.setRange(min_range, max_range)
@@ -144,7 +146,7 @@ class MotorSlider(QWidget):
         self.sig_end_session.emit()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication([])
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     layout = QHBoxLayout()

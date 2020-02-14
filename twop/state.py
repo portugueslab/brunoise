@@ -49,9 +49,9 @@ class ExperimentState:
         self.experiment_settings = ExperimentSettings()
         self.scanner = Scanner(self.experiment_start_event)
         self.motors = dict()
-        self.motors['x'] = MotorControl("COM6", axes='x')
-        self.motors['y'] = MotorControl("COM6", axes='y')
-        self.motors['z'] = MotorControl("COM6", axes='z')
+        self.motors["x"] = MotorControl("COM6", axes="x")
+        self.motors["y"] = MotorControl("COM6", axes="y")
+        self.motors["z"] = MotorControl("COM6", axes="z")
         self.save_queue = ArrayQueue()
         self.saver = StackSaver(self.save_queue, self.scanner.stop_event)
         self.saving = False

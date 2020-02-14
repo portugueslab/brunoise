@@ -53,9 +53,9 @@ class TwopViewer(QWidget):
         self.layout().addLayout(self.preview_layout)
         self.layout().addWidget(self.experiment_widget)
 
-        x = self.state.motors['x']
-        y = self.state.motors['y']
-        z = self.state.motors['z']
+        x = self.state.motors["x"]
+        y = self.state.motors["y"]
+        z = self.state.motors["z"]
         self.motor_control_slider = MotionControlXYZ(x, y, z)
         self.layout().addWidget(self.motor_control_slider)
 
