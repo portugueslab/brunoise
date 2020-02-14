@@ -1,7 +1,7 @@
 from multiprocessing import Event
 from lightparam import Param
 from lightparam.param_qt import ParametrizedQt
-from scanning import Scanner, ScanningParameters, ScanningState
+from scanning import Scanner, ScanningParameters, ScanningState, ImageReconstructor
 from streaming_save import StackSaver, SavingParameters
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
@@ -52,15 +52,21 @@ class ExperimentState:
         self.motors["x"] = MotorControl("COM6", axes="x")
         self.motors["y"] = MotorControl("COM6", axes="y")
         self.motors["z"] = MotorControl("COM6", axes="z")
+        self.reconstructor = ImageReconstructor(
+            self.scanner.data_queue, self.scanner.stop_event
+        )
         self.save_queue = ArrayQueue()
         self.saver = StackSaver(self.save_queue, self.scanner.stop_event)
         self.saving = False
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
         self.scanner.start()
+        self.reconstructor.start()
         self.saver.start()
+        self.open_setup()
 
     def open_setup(self):
+        self.send_scan_params()
         pass
 
     def start_experiment(self):
@@ -79,7 +85,7 @@ class ExperimentState:
 
     def get_image(self):
         try:
-            image = -self.scanner.data_queue.get(timeout=0.001)
+            image = -self.reconstructor.output_queue.get(timeout=0.001)
             if self.saving and self.saver.start_saving.is_set():
                 self.save_queue.put(image)
             return image
@@ -87,7 +93,9 @@ class ExperimentState:
             return None
 
     def send_scan_params(self):
-        self.scanner.parameter_queue.put(convert_params(self.scanning_settings))
+        cparams = convert_params(self.scanning_settings)
+        self.scanner.parameter_queue.put(cparams)
+        self.reconstructor.parameter_queue.put(cparams)
 
     def send_save_params(self):
         self.saver.saving_parameter_queue.put(

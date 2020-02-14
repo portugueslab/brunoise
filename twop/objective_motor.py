@@ -3,12 +3,12 @@ import pyvisa
 
 class MotorControl:
     def __init__(
-            self,
-            port,
-            baudrate=921600,
-            parity=pyvisa.constants.Parity.none,
-            encoding="ascii",
-            axes=None,
+        self,
+        port,
+        baudrate=921600,
+        parity=pyvisa.constants.Parity.none,
+        encoding="ascii",
+        axes=None,
     ):
         self.baudrate = baudrate
         self.parity = parity
@@ -32,7 +32,7 @@ class MotorControl:
             return output[0]
 
         except pyvisa.VisaIOError:
-            print(f'Error get position axes number {self.axes} ')
+            print(f"Error get position axes number {self.axes} ")
             return None
 
     def move_abs(self, coordinate):
