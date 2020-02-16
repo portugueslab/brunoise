@@ -6,6 +6,8 @@ from streaming_save import StackSaver, SavingParameters
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
 from twop.objective_motor import MotorControl
+from twop.external_communication import ExternalCommunication, ExternalCommunicationSettings
+from lightparam import Parametrized
 from twop.power_control import LaserPowerControl
 
 
@@ -55,6 +57,15 @@ class ExperimentState:
         )
         self.save_queue = ArrayQueue()
         self.saver = StackSaver(self.save_queue, self.scanner.stop_event)
+        param = dict()
+        param['zmq_start'] = False
+        self.ext_comm = ExternalCommunicationSettings()
+        self.external_parameters = Parametrized(name='camera_trigger',
+                                                tree=self.ext_comm,
+                                                params=param)
+        self.ext_comm.add(self.external_parameters)
+        self.external_sync = ExternalCommunication(self.experiment_start_event,
+                                                   self.ext_comm)
         self.motors = dict()
         self.motors["x"] = MotorControl("COM6", axes="x")
         self.motors["y"] = MotorControl("COM6", axes="y")
