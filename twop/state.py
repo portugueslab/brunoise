@@ -59,13 +59,8 @@ class ExperimentState:
         self.saver = StackSaver(self.save_queue, self.scanner.stop_event)
         param = dict()
         param['zmq_start'] = False
-        self.ext_comm = ExternalCommunicationSettings()
-        self.external_parameters = Parametrized(name='camera_trigger',
-                                                tree=self.ext_comm,
-                                                params=param)
-        self.ext_comm.add(self.external_parameters)
         self.external_sync = ExternalCommunication(self.experiment_start_event,
-                                                   self.ext_comm)
+                                                   param)
         self.motors = dict()
         self.motors["x"] = MotorControl("COM6", axes="x")
         self.motors["y"] = MotorControl("COM6", axes="y")
@@ -74,6 +69,7 @@ class ExperimentState:
         self.saving = False
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
+        self.external_sync.start()
         self.scanner.start()
         self.reconstructor.start()
         self.saver.start()
@@ -94,7 +90,6 @@ class ExperimentState:
     def close_setup(self):
         # Return Newport rotatory servo to "Not referenced" AKA stand-by state
         self.power_controller.terminate_connection()
-        self.motor_control_slider.end_session()
         self.scanner.stop_event.set()
 
     def get_image(self):
