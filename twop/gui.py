@@ -107,7 +107,6 @@ class TwopViewer(QWidget):
         self.motor_control_slider.end_session()
         event.accept()
 
-
 if __name__ == "__main__":
     app = QApplication([])
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())

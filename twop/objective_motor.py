@@ -28,7 +28,10 @@ class MotorControl:
         input_m = self.axes + "TP"
         try:
             output = self.motor.query(input_m)
-            output = [float(s) for s in output.split(",")]
+            try:
+                output = [float(s) for s in output.split(",")]
+            except ValueError:
+                print("Got ", output, "from motor, what to do?")
             return output[0]
 
         except pyvisa.VisaIOError:

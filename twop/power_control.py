@@ -1,8 +1,5 @@
 import pyvisa
 from math import acos
-import qdarkstyle
-from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QSpinBox, QLabel
-
 
 class LaserPowerControl:
     def __init__(

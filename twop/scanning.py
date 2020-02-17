@@ -14,7 +14,7 @@ from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from time import sleep
-
+from math import ceil
 
 class ScanningState(Enum):
     PREVIEW = 1
@@ -34,7 +34,7 @@ class ScanningParameters:
     sample_rate_out: float = 500000.0
     scanning_state: ScanningState = ScanningState.PREVIEW
     reset_shutter: bool = True
-    n_frames: int = -1
+    n_frames: int = 100
 
 
 def frame_duration(sp: ScanningParameters):
@@ -51,7 +51,7 @@ def compute_waveform(sp: ScanningParameters):
 
 
 class Scanner(Process):
-    def __init__(self, experiment_start_event, max_queuesize=200):
+    def __init__(self, experiment_start_event, duration_queue, max_queuesize=200):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
         self.parameter_queue = Queue()
@@ -59,6 +59,8 @@ class Scanner(Process):
         self.experiment_start_event = experiment_start_event
         self.scanning_parameters = ScanningParameters()
         self.new_parameters = copy(self.scanning_parameters)
+        self.duration_queue = duration_queue
+        self.n_frames_queue = Queue()
 
     def run(self):
         self.compute_scan_parameters()
@@ -142,9 +144,9 @@ class Scanner(Process):
 
         first_write = True
         i_acquired = 0
-        while not self.stop_event.is_set() and not (
-            self.scanning_parameters.scanning_state == ScanningState.EXPERIMENT_RUNNING
-            and i_acquired < self.scanning_parameters.n_frames
+        while not self.stop_event.is_set() and (
+            not self.scanning_parameters.scanning_state == ScanningState.EXPERIMENT_RUNNING
+            or i_acquired < self.scanning_parameters.n_frames
         ):
             # The first write has to be defined before the task starts
             try:
@@ -161,6 +163,7 @@ class Scanner(Process):
                     timeout=1,
                 )
                 i_acquired += 1
+                print("Acquired", i_acquired, "planes")
             except nidaqmx.DaqError as e:
                 print(e)
                 break
@@ -168,8 +171,14 @@ class Scanner(Process):
             self.data_queue.put(self.read_buffer[0, :])
             try:
                 self.new_parameters = self.parameter_queue.get(timeout=0.0001)
-                if self.new_parameters != self.scanning_parameters:
+                if self.new_parameters != self.scanning_parameters and self.scanning_parameters.scanning_state != ScanningState.EXPERIMENT_RUNNING:
                     break
+            except Empty:
+                pass
+            try:
+                duration = self.duration_queue.get(timeout=0.0001)
+                self.scanning_parameters.n_frames = int(ceil(duration/frame_duration(self.scanning_parameters))) + 1
+                self.n_frames_queue.put(self.scanning_parameters.n_frames)
             except Empty:
                 pass
 
@@ -201,7 +210,6 @@ class Scanner(Process):
                     self.scanning_parameters.scanning_state
                     == ScanningState.EXPERIMENT_RUNNING,
                 )
-                self.toggle_shutter(shutter_task)
 
 
 class ImageReconstructor(Process):

@@ -12,17 +12,18 @@ import numpy as np
 class SavingParameters:
     output_dir: Path
     plane_size: tuple
-    n_t: int
-    n_z: int
+    n_t: int = 100
+    n_z: int = 1
 
 
 class StackSaver(Process):
-    def __init__(self, data_queue, stop_signal: Event):
+    def __init__(self, data_queue, stop_signal: Event, n_frames_queue):
         super().__init__()
         self.data_queue = data_queue
         self.stop_signal = stop_signal
         self.start_saving = Event()
         self.stop_saving = Event()
+        self.n_frames_queue = n_frames_queue
         self.saving = False
         self.saving_parameter_queue = Queue()
         self.save_parameters: Optional[SavingParameters] = None
@@ -56,19 +57,23 @@ class StackSaver(Process):
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
         while i_received < n_total and not self.stop_signal.is_set():
             try:
+                self.save_parameters.n_t = self.n_frames_queue.get(timeout=0.001)
+                n_total = self.save_parameters.n_t * self.save_parameters.n_z
+            except:
+                pass
+            try:
                 frame = self.data_queue.get(timeout=0.01)
                 self.fill_dataset(frame)
                 i_received += 1
             except Empty:
                 pass
-        if self.stop_signal.is_set():
-            self.dataset.shape_full = (
-                (
-                    self.save_parameters.n_t,
-                    self.i_block,
-                    *self.save_parameters.plane_size,
-                ),
-            )
+        self.dataset.shape_full = (
+            (
+                self.save_parameters.n_t,
+                self.i_block,
+                *self.save_parameters.plane_size,
+            ),
+        )
         self.dataset.finalize()
         self.start_saving.clear()
         self.stop_signal.clear()
@@ -96,9 +101,9 @@ class StackSaver(Process):
         self.i_in_plane = 0
         self.i_block += 1
         self.dataset.shape_full = (
-            *self.dataset.shape_full[:2],
-            self.i_block,
             self.save_parameters.n_t,
+            self.i_block,
+            *self.dataset.shape_full[:2],
         )
 
     def receive_save_parameters(self):
