@@ -28,14 +28,26 @@ class ScanningParameters:
     voltage_x: float = 3
     voltage_y: float = 3
     n_bin: int = 10
-    mystery_offset = -400
+    n_turn: int = 10
+    n_extra: int = 10
+    mystery_offset: int = -400
     sample_rate_out: float = 500000.0
     scanning_state: ScanningState = ScanningState.PREVIEW
     reset_shutter: bool = True
+    n_frames: int = -1
+
+
+def frame_duration(sp: ScanningParameters):
+    return (
+        scanning_patterns.n_total(sp.n_x, sp.n_y, sp.n_turn, sp.n_extra)
+        / sp.sample_rate_out
+    )
 
 
 def compute_waveform(sp: ScanningParameters):
-    return scanning_patterns.simple_scanning_pattern(sp.n_x, sp.n_y, 10, 100, True)
+    return scanning_patterns.simple_scanning_pattern(
+        sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, True
+    )
 
 
 class Scanner(Process):
@@ -129,7 +141,11 @@ class Scanner(Process):
         reader = AnalogMultiChannelReader(read_task.in_stream)
 
         first_write = True
-        while not self.stop_event.is_set():
+        i_acquired = 0
+        while not self.stop_event.is_set() and not (
+            self.scanning_parameters.scanning_state == ScanningState.EXPERIMENT_RUNNING
+            and i_acquired < self.scanning_parameters.n_frames
+        ):
             # The first write has to be defined before the task starts
             try:
                 writer.write_many_sample(self.write_signals)
@@ -144,6 +160,7 @@ class Scanner(Process):
                     number_of_samples_per_channel=self.n_samples_in,
                     timeout=1,
                 )
+                i_acquired += 1
             except nidaqmx.DaqError as e:
                 print(e)
                 break
@@ -211,7 +228,7 @@ class ImageReconstructor(Process):
                     scanning_patterns.reconstruct_image_pattern(
                         np.roll(image, self.scanning_parameters.mystery_offset),
                         *self.waveform,
-                        (self.scanning_parameters.n_y, self.scanning_parameters.n_y),
+                        (self.scanning_parameters.n_x, self.scanning_parameters.n_y),
                         self.scanning_parameters.n_bin,
                     )
                 )

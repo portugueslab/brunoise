@@ -5,18 +5,32 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QPushButton,
     QHBoxLayout,
-    QSpacerItem,
+    QLabel,
 )
-from state import ExperimentState
+from state import ExperimentState, ScanningParameters, frame_duration
 
 import pyqtgraph as pg
-import numpy as np
 import qdarkstyle
 
-from queue import Empty
 from lightparam.gui import ParameterGui
 
 from twop.objective_motor_sliders import MotionControlXYZ
+
+
+class CalculatedParameterDisplay(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setLayout(QVBoxLayout())
+        self.lbl_frameinfo = QLabel()
+        self.layout().addWidget(self.lbl_frameinfo)
+        self.lbl_frameinfo.setMinimumHeight(120)
+
+    def display_scanning_parameters(self, sp: ScanningParameters):
+        self.lbl_frameinfo.setText(
+            "Resolution: {} x {}\n".format(sp.n_x, sp.n_y)
+            + "Frame duration {:03f}\n".format(frame_duration(sp))
+            + "Extra pixels {}".format(sp.n_extra)
+        )
 
 
 class ExperimentRunner(QWidget):
@@ -28,7 +42,6 @@ class ExperimentRunner(QWidget):
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.experiment_settings_gui)
         self.layout().addWidget(self.start_button)
-        self.layout().addItem(QSpacerItem(10, 10))
 
 
 class TwopViewer(QWidget):
@@ -45,23 +58,33 @@ class TwopViewer(QWidget):
         self.first_image = True
 
         self.scanning_settings_gui = ParameterGui(self.state.scanning_settings)
+        self.scanning_calc = CalculatedParameterDisplay()
+
         self.preview_layout.addWidget(self.scanning_settings_gui)
+        self.preview_layout.addWidget(self.scanning_calc)
 
         self.experiment_widget = ExperimentRunner(self.state.experiment_settings)
         self.experiment_widget.start_button.clicked.connect(self.state.start_experiment)
 
         self.layout().addLayout(self.preview_layout)
-        self.layout().addWidget(self.experiment_widget)
+
+        self.side_layout = QVBoxLayout()
+
+        self.side_layout.addWidget(self.experiment_widget)
 
         x = self.state.motors["x"]
         y = self.state.motors["y"]
         z = self.state.motors["z"]
         self.motor_control_slider = MotionControlXYZ(x, y, z)
-        self.layout().addWidget(self.motor_control_slider)
+        self.side_layout.addWidget(self.motor_control_slider)
+
+        self.layout().addLayout(self.side_layout)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start()
+
+        self.state.sig_scanning_changed.connect(self.update_calc_display)
 
     def update(self):
         current_image = self.state.get_image()
@@ -75,6 +98,9 @@ class TwopViewer(QWidget):
             autoHistogramRange=self.first_image,
         )
         self.first_image = False
+
+    def update_calc_display(self):
+        self.scanning_calc.display_scanning_parameters(self.state.scanning_parameters)
 
     def closeEvent(self, event) -> None:
         self.state.close_setup()

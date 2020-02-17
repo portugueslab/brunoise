@@ -72,5 +72,3 @@ class LaserPowerControl:
             power_units / amplitude - vertical_shift
         ) / frequency
         return target_units
-
-

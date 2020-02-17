@@ -14,6 +14,11 @@ def make_arc(cx, cy, radius, n_segments=12, is_left=True):
 
 
 @jit(nopython=True)
+def n_total(n_x, n_y, n_turn, n_extra_points):
+    return (n_x + 2 * n_turn) * n_y - 2 * n_turn + n_extra_points
+
+
+@jit(nopython=True)
 def simple_scanning_pattern(n_x, n_y, n_turn, n_extra_points=20, pause_x=False):
     """
     n_x valid x resolution
@@ -37,8 +42,8 @@ def simple_scanning_pattern(n_x, n_y, n_turn, n_extra_points=20, pause_x=False):
             )
         points_x.extend(path_x)
         points_y.extend([i_y for _ in range(len(path_x))])
-    points_x.extend([0 for _ in range(n_extra_points)])
-    points_y.extend([0 for _ in range(n_extra_points)])
+    points_x.extend([0 for _ in range(n_extra_points - 1)])
+    points_y.extend([0 for _ in range(n_extra_points - 1)])
     return np.array(points_x), np.array(points_y)
 
 
