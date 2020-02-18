@@ -16,6 +16,7 @@ from enum import Enum
 from time import sleep
 from math import ceil
 
+
 class ScanningState(Enum):
     PREVIEW = 1
     EXPERIMENT_RUNNING = 2
@@ -137,6 +138,7 @@ class Scanner(Process):
     def wait_for_experiment_start(self):
         while not self.experiment_start_event.is_set():
             sleep(0.00001)
+            self.experiment_start_event.clear()
 
     def scan_loop(self, read_task, write_task, experiment_running=False):
         writer = AnalogMultiChannelWriter(write_task.out_stream)
@@ -145,7 +147,8 @@ class Scanner(Process):
         first_write = True
         i_acquired = 0
         while not self.stop_event.is_set() and (
-            not self.scanning_parameters.scanning_state == ScanningState.EXPERIMENT_RUNNING
+            not self.scanning_parameters.scanning_state
+            == ScanningState.EXPERIMENT_RUNNING
             or i_acquired < self.scanning_parameters.n_frames
         ):
             # The first write has to be defined before the task starts
@@ -163,7 +166,6 @@ class Scanner(Process):
                     timeout=1,
                 )
                 i_acquired += 1
-                print("Acquired", i_acquired, "planes")
             except nidaqmx.DaqError as e:
                 print(e)
                 break
@@ -171,13 +173,19 @@ class Scanner(Process):
             self.data_queue.put(self.read_buffer[0, :])
             try:
                 self.new_parameters = self.parameter_queue.get(timeout=0.0001)
-                if self.new_parameters != self.scanning_parameters and self.scanning_parameters.scanning_state != ScanningState.EXPERIMENT_RUNNING:
+                if (
+                    self.new_parameters != self.scanning_parameters
+                    and self.scanning_parameters.scanning_state
+                    != ScanningState.EXPERIMENT_RUNNING
+                ):
                     break
             except Empty:
                 pass
             try:
                 duration = self.duration_queue.get(timeout=0.0001)
-                self.scanning_parameters.n_frames = int(ceil(duration/frame_duration(self.scanning_parameters))) + 1
+                self.scanning_parameters.n_frames = (
+                    int(ceil(duration / frame_duration(self.scanning_parameters))) + 1
+                )
                 self.n_frames_queue.put(self.scanning_parameters.n_frames)
             except Empty:
                 pass

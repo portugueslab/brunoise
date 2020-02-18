@@ -21,15 +21,15 @@ It is done in software. To be investigated
 
 ## Scanning
 
-- [ ] Calculation of parameters
+- [x] Calculation of parameters
 basic algebra and looking up NI documentation
 (area, frequency, resolution, aspect ratio)
 on paper and python functions
 e.g. given the zoom and the target aspect ratio, calculate the scanning pattern
-     * [ ] Calculate single plane duration
-     * [ ] See how the paramters have to be adjusted (scanning stopped) to get an _exact_ plane duration
+     * [x] Calculate single plane duration
+     * [x] See how the paramters have to be adjusted (scanning stopped) to get an _exact_ plane duration
      * [ ] Decide on parameters for user to input for scanning and calculate the rest from those (e.g. resolution, aspect ratio, frame rate)
-     * [ ] Investigate what paramters are possible in the NI system for input and output rates
+     * [ ] Investigate what parameters are possible in the NI system for input and output rates
      * [ ] Look at galvo responses to see how far the speed can be pushed before they fly out or burn
 
 - [X] Image reconstruction and acquisition
@@ -80,9 +80,9 @@ to the image
     * [X] like labview (labels for current position and spin boxes to change)
     * [X] nice sliders with markers for current position
 
-- [ ] Experiment control
-    * [ ] input duration from Stytra, start button and z shift
-    * [ ] get all data from Stytra and just z shift
+- [x] Experiment control
+    * [x] input duration from Stytra, start button and z shift
+    * [x] get all data from Stytra and just z shift
 
 - [ ] Scanning parameter gui
     * [X] all manual parameters like in labview
@@ -101,3 +101,10 @@ bits about networking and zeromq, look at lightsheet software (Ema)
 - [ ] ablations
 - [ ] interlacing scanning pattern
 - [ ] spiral scanning pattern
+
+# Notes on the program architecture
+Everything that handles the microscope hardware comes together in the ExperimentState.
+Things that user set are called Settings (handled via lightparam for automated GUI creation), and the hardware-related things that are computed from
+the user settings are called parameters.
+
+GUI code should only access the hardware through the state

@@ -3,6 +3,7 @@ from multiprocessing import Process, Queue
 from lightparam.param_qt import ParameterTree
 from time import sleep
 
+
 class ExternalCommunicationSettings(ParameterTree):
     def __init__(self):
         super().__init__()
@@ -21,17 +22,16 @@ class ExternalCommunication(Process):
         zmq_context = zmq.Context()
         zmq_socket = zmq_context.socket(zmq.REQ)
         zmq_socket.connect(self.zmq_tcp_address)
-        zmq_started = False
         while not self.end_signal.is_set():
-            if self.experiment_start_event.is_set() and not zmq_started:
+            if self.experiment_start_event.is_set():
                 try:
                     zmq_socket.send_json(self.external_parameters)
                     self.external_parameters["zmq_start"] = True
-                    print("ZMQ sent")
                     duration = zmq_socket.recv_json()
                     self.duration_queue.put(duration)
-                    zmq_started = True
-
+                    sleep(2.0)  # we are not going to start and stop the experiment
+                    # within 2 seconds, this gives time for the scanning process to clear the
+                    # start event
                 except zmq.ZMQError:
                     print("0MQ connection unsuccessful")
             sleep(0.0001)

@@ -16,6 +16,13 @@ class SavingParameters:
     n_z: int = 1
 
 
+@dataclass
+class SavingStatus:
+    target_params: SavingParameters
+    i_t: int = 0
+    i_z: int = 0
+
+
 class StackSaver(Process):
     def __init__(self, data_queue, stop_signal: Event, n_frames_queue):
         super().__init__()
@@ -31,6 +38,7 @@ class StackSaver(Process):
         self.i_block = 0
         self.saving_dataset = None
         self.current_data = None
+        self.saved_status_queue = Queue()
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -59,7 +67,7 @@ class StackSaver(Process):
             try:
                 self.save_parameters.n_t = self.n_frames_queue.get(timeout=0.001)
                 n_total = self.save_parameters.n_t * self.save_parameters.n_z
-            except:
+            except Empty:
                 pass
             try:
                 frame = self.data_queue.get(timeout=0.01)
@@ -67,13 +75,14 @@ class StackSaver(Process):
                 i_received += 1
             except Empty:
                 pass
-        self.dataset.shape_full = (
-            (
-                self.save_parameters.n_t,
-                self.i_block,
-                *self.save_parameters.plane_size,
-            ),
+
+        new_shape = (
+            self.save_parameters.n_t,
+            self.i_block,
+            *self.save_parameters.plane_size,
         )
+        print(new_shape)
+        self.dataset.shape_full = new_shape
         self.dataset.finalize()
         self.start_saving.clear()
         self.stop_signal.clear()
@@ -88,11 +97,17 @@ class StackSaver(Process):
     def fill_dataset(self, frame):
         self.current_data[self.i_in_plane, 0, :, :] = self.cast(frame)
         self.i_in_plane += 1
+        self.saved_status_queue.put(
+            SavingStatus(
+                target_params=self.save_parameters,
+                i_t=self.i_in_plane,
+                i_z=self.i_block,
+            )
+        )
         if self.i_in_plane == self.save_parameters.n_t:
             self.complete_plane()
 
     def complete_plane(self):
-        print("Completing plane")
         fl.save(
             Path(self.save_parameters.output_dir)
             / "original/{:04d}.h5".format(self.i_block),

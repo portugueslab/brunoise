@@ -9,7 +9,7 @@ from scanning import (
     frame_duration,
 )
 from pathlib import Path
-from streaming_save import StackSaver, SavingParameters
+from streaming_save import StackSaver, SavingParameters, SavingStatus
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
 from twop.objective_motor import MotorControl
@@ -20,6 +20,7 @@ from twop.external_communication import (
 from twop.power_control import LaserPowerControl
 from math import sqrt
 from PyQt5.QtCore import QObject, pyqtSignal
+from typing import Optional
 
 
 class ExperimentSettings(ParametrizedQt):
@@ -103,13 +104,19 @@ class ExperimentState(QObject):
         self.external_sync = ExternalCommunication(
             self.experiment_start_event, self.end_event
         )
-        self.scanner = Scanner(self.experiment_start_event, duration_queue=self.external_sync.duration_queue)
+        self.scanner = Scanner(
+            self.experiment_start_event,
+            duration_queue=self.external_sync.duration_queue,
+        )
         self.scanning_parameters = None
         self.reconstructor = ImageReconstructor(
             self.scanner.data_queue, self.scanner.stop_event
         )
         self.save_queue = ArrayQueue(max_mbytes=800)
-        self.saver = StackSaver(self.save_queue, self.scanner.stop_event, self.scanner.n_frames_queue)
+        self.saver = StackSaver(
+            self.save_queue, self.scanner.stop_event, self.scanner.n_frames_queue
+        )
+        self.save_status = None
 
         self.motors = dict()
         self.motors["x"] = MotorControl("COM6", axes="x")
@@ -136,6 +143,14 @@ class ExperimentState(QObject):
         self.saving = True
         self.saver.start_saving.set()
         self.experiment_start_event.set()
+
+    def stop_experiment(self):
+        self.saving = False
+        self.saver.stop_saving.set()
+        self.experiment_start_event.clear()
+        params_to_send = convert_params(self.scanning_settings)
+        params_to_send.scanning_state = ScanningState.PREVIEW
+        self.scanner.parameter_queue.put(params_to_send)
 
     def close_setup(self):
         # Return Newport rotatory servo to "Not referenced" AKA stand-by state
@@ -166,10 +181,14 @@ class ExperimentState(QObject):
         self.saver.saving_parameter_queue.put(
             SavingParameters(
                 output_dir=Path(r"C:\Users\portugueslab\Desktop\test\python"),
-                plane_size=(
-                    self.scanning_parameters.n_x,
-                    self.scanning_parameters.n_y
-                ),
-                n_z=self.experiment_settings.n_planes
+                plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                n_z=self.experiment_settings.n_planes,
             )
         )
+
+    def get_save_status(self) -> Optional[SavingStatus]:
+        try:
+            return self.saver.saved_status_queue.get(timeout=0.001)
+        except Empty:
+            pass
+        return None

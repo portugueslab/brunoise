@@ -1,6 +1,7 @@
 import pyvisa
 from math import acos
 
+
 class LaserPowerControl:
     def __init__(
         self,
