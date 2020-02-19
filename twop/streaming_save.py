@@ -24,11 +24,14 @@ class SavingStatus:
 
 
 class StackSaver(Process):
-    def __init__(self, data_queue, stop_signal: Event, n_frames_queue):
+    def __init__(
+        self, data_queue, start_saving: Event, stop_signal: Event, n_frames_queue
+    ):
         super().__init__()
         self.data_queue = data_queue
         self.stop_signal = stop_signal
-        self.start_saving = Event()
+        self.save_end_signal = Event()
+        self.start_saving = start_saving
         self.stop_saving = Event()
         self.n_frames_queue = n_frames_queue
         self.saving = False
@@ -42,7 +45,7 @@ class StackSaver(Process):
 
     def run(self):
         while not self.stop_signal.is_set():
-            if self.start_saving.is_set():
+            if self.start_saving.is_set() and self.save_parameters is not None:
                 self.save_loop()
             else:
                 self.receive_save_parameters()
@@ -63,7 +66,11 @@ class StackSaver(Process):
         self.i_block = 0
         self.current_data = np.empty(self.dataset.shape_block, dtype=np.float64)
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
-        while i_received < n_total and not self.stop_signal.is_set():
+        while (
+            i_received < n_total
+            and not self.stop_signal.is_set()
+            and not self.save_end_signal.is_set()
+        ):
             try:
                 self.save_parameters.n_t = self.n_frames_queue.get(timeout=0.001)
                 n_total = self.save_parameters.n_t * self.save_parameters.n_z
@@ -81,9 +88,9 @@ class StackSaver(Process):
             self.i_block,
             *self.save_parameters.plane_size,
         )
-        print(new_shape)
         self.dataset.shape_full = new_shape
-        self.dataset.finalize()
+        if self.i_block > 0:
+            self.dataset.finalize()
         self.start_saving.clear()
         self.stop_signal.clear()
         self.save_parameters = None

@@ -138,23 +138,28 @@ class Scanner(Process):
     def wait_for_experiment_start(self):
         while not self.experiment_start_event.is_set():
             sleep(0.00001)
-            self.experiment_start_event.clear()
 
-    def scan_loop(self, read_task, write_task, experiment_running=False):
+    def scan_loop(self, read_task, write_task):
         writer = AnalogMultiChannelWriter(write_task.out_stream)
         reader = AnalogMultiChannelReader(read_task.in_stream)
 
         first_write = True
         i_acquired = 0
+        print("Started scan loop")
         while not self.stop_event.is_set() and (
             not self.scanning_parameters.scanning_state
             == ScanningState.EXPERIMENT_RUNNING
             or i_acquired < self.scanning_parameters.n_frames
         ):
             # The first write has to be defined before the task starts
+            print("Acquired frame {}".format(i_acquired))
             try:
                 writer.write_many_sample(self.write_signals)
-                if experiment_running:
+                if (
+                    self.scanning_parameters.scanning_state
+                    == ScanningState.EXPERIMENT_RUNNING
+                    and i_acquired == 0
+                ):
                     self.wait_for_experiment_start()
                 if first_write:
                     read_task.start()
@@ -173,10 +178,10 @@ class Scanner(Process):
             self.data_queue.put(self.read_buffer[0, :])
             try:
                 self.new_parameters = self.parameter_queue.get(timeout=0.0001)
-                if (
-                    self.new_parameters != self.scanning_parameters
-                    and self.scanning_parameters.scanning_state
+                if self.new_parameters != self.scanning_parameters and (
+                    self.scanning_parameters.scanning_state
                     != ScanningState.EXPERIMENT_RUNNING
+                    or self.new_parameters.scanning_state == ScanningState.PREVIEW
                 ):
                     break
             except Empty:
@@ -212,12 +217,7 @@ class Scanner(Process):
                 self.setup_tasks(read_task, write_task, shutter_task)
                 if self.scanning_parameters.reset_shutter:
                     self.toggle_shutter(shutter_task)
-                self.scan_loop(
-                    read_task,
-                    write_task,
-                    self.scanning_parameters.scanning_state
-                    == ScanningState.EXPERIMENT_RUNNING,
-                )
+                self.scan_loop(read_task, write_task)
 
 
 class ImageReconstructor(Process):

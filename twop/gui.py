@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import (
     QDockWidget,
     QVBoxLayout,
     QPushButton,
-    QHBoxLayout,
     QLabel,
     QProgressBar,
 )
@@ -56,11 +55,11 @@ class ExperimentControl(QWidget):
 
     def toggle_start(self):
         if self.state.saving:
-            self.state.stop_experiment()
+            self.state.end_experiment(force=True)
             self.startstop_button.setText("Start recording")
         else:
-            self.state.start_experiment()
-            self.startstop_button.setText("Stop recording")
+            if self.state.start_experiment():
+                self.startstop_button.setText("Stop recording")
 
     def update(self):
         sstatus = self.state.get_save_status()
@@ -69,6 +68,8 @@ class ExperimentControl(QWidget):
             self.plane_progress.setValue(sstatus.i_t)
             self.stack_progress.setMaximum(sstatus.target_params.n_z)
             self.stack_progress.setValue(sstatus.i_z)
+        if self.state.save_status == False:
+            self.startstop_button.setText("Start recording")
 
 
 class ViewingWidget(QWidget):

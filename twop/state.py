@@ -1,4 +1,4 @@
-from multiprocessing import Event
+from multiprocessing import Event, Queue
 from lightparam import Param, ParameterTree
 from lightparam.param_qt import ParametrizedQt
 from scanning import (
@@ -13,14 +13,19 @@ from streaming_save import StackSaver, SavingParameters, SavingStatus
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
 from twop.objective_motor import MotorControl
-from twop.external_communication import (
-    ExternalCommunication,
-    ExternalCommunicationSettings,
-)
+from twop.external_communication import ZMQcomm
 from twop.power_control import LaserPowerControl
 from math import sqrt
 from PyQt5.QtCore import QObject, pyqtSignal
 from typing import Optional
+from enum import Enum
+from time import sleep
+
+
+class GlobalState(Enum):
+    PREVIEW = 1
+    WAIT_FOR_STYTRA = 2
+    SCANNING_PLANE = 3
 
 
 class ExperimentSettings(ParametrizedQt):
@@ -28,7 +33,7 @@ class ExperimentSettings(ParametrizedQt):
         super().__init__()
         self.name = "recording"
         self.n_planes = Param(1, (1, 500))
-        self.dz = Param(1.0, (0.1, 20.0))
+        self.dz = Param(1.0, (0.1, 20.0), unit="um")
         self.save_dir = Param("", gui=False)
 
 
@@ -38,8 +43,8 @@ class ScanningSettings(ParametrizedQt):
         self.name = "scanning"
         self.aspect_ratio = Param(1.0, (0.2, 5.0))
         self.voltage = Param(3.0, (0.3, 4.0))
-        self.framerate = Param(4.0)
-        self.reset_shutter = Param(True)
+        self.framerate = Param(4.0, (0.1, 10.0))
+        self.reset_shutter = Param(False)
         self.binning = Param(10, (1, 50))
         self.output_rate_khz = Param(400, (50, 2000))
         self.mystery_offset = Param(-320, (-1000, 1000))
@@ -101,22 +106,24 @@ class ExperimentState(QObject):
         self.parameter_tree.add(self.experiment_settings)
 
         self.end_event = Event()
-        self.external_sync = ExternalCommunication(
-            self.experiment_start_event, self.end_event
-        )
+        self.external_sync = ZMQcomm()
+        self.duration_queue = Queue()
         self.scanner = Scanner(
-            self.experiment_start_event,
-            duration_queue=self.external_sync.duration_queue,
+            self.experiment_start_event, duration_queue=self.duration_queue
         )
         self.scanning_parameters = None
         self.reconstructor = ImageReconstructor(
             self.scanner.data_queue, self.scanner.stop_event
         )
         self.save_queue = ArrayQueue(max_mbytes=800)
+
         self.saver = StackSaver(
-            self.save_queue, self.scanner.stop_event, self.scanner.n_frames_queue
+            self.save_queue,
+            self.experiment_start_event,
+            self.scanner.stop_event,
+            self.scanner.n_frames_queue,
         )
-        self.save_status = None
+        self.save_status: Optional[SavingStatus] = None
 
         self.motors = dict()
         self.motors["x"] = MotorControl("COM6", axes="x")
@@ -126,7 +133,6 @@ class ExperimentState(QObject):
         self.saving = False
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
-        self.external_sync.start()
         self.scanner.start()
         self.reconstructor.start()
         self.saver.start()
@@ -135,22 +141,41 @@ class ExperimentState(QObject):
     def open_setup(self):
         self.send_scan_params()
 
-    def start_experiment(self):
+    def start_experiment(self, first_plane=True):
+        duration = self.external_sync.send(self.parameter_tree.serialize())
+        if duration is None:
+            self.restart_scanning()
+            return False
+        self.duration_queue.put(duration)
         params_to_send = convert_params(self.scanning_settings)
         params_to_send.scanning_state = ScanningState.EXPERIMENT_RUNNING
         self.scanner.parameter_queue.put(params_to_send)
-        self.send_save_params()
-        self.saving = True
-        self.saver.start_saving.set()
+        if first_plane:
+            self.send_save_params()
+            self.saver.save_end_signal.clear()
+            self.saving = True
         self.experiment_start_event.set()
+        return True
 
-    def stop_experiment(self):
+    def end_experiment(self, force=False):
         self.saving = False
-        self.saver.stop_saving.set()
         self.experiment_start_event.clear()
+
+        if not force and self.save_status.i_z < self.save_status.target_params.n_z:
+            self.advance_plane()
+        else:
+            self.saver.save_end_signal.set()
+            self.restart_scanning()
+
+    def restart_scanning(self):
         params_to_send = convert_params(self.scanning_settings)
         params_to_send.scanning_state = ScanningState.PREVIEW
         self.scanner.parameter_queue.put(params_to_send)
+
+    def advance_plane(self):
+        self.motors["z"].move_rel(self.experiment_settings.dz / 1000)
+        sleep(0.2)
+        self.start_experiment(first_plane=False)
 
     def close_setup(self):
         # Return Newport rotatory servo to "Not referenced" AKA stand-by state
@@ -159,12 +184,16 @@ class ExperimentState(QObject):
         self.end_event.set()
         self.scanner.join()
         self.reconstructor.join()
-        self.external_sync.join()
 
     def get_image(self):
         try:
             image = -self.reconstructor.output_queue.get(timeout=0.001)
             if self.saving and self.saver.start_saving.is_set():
+                if (
+                    self.save_status is not None
+                    and self.save_status.i_t == self.save_status.target_params.n_t
+                ):
+                    self.end_experiment()
                 self.save_queue.put(image)
             return image
         except Empty:
@@ -188,7 +217,8 @@ class ExperimentState(QObject):
 
     def get_save_status(self) -> Optional[SavingStatus]:
         try:
-            return self.saver.saved_status_queue.get(timeout=0.001)
+            self.save_status = self.saver.saved_status_queue.get(timeout=0.001)
+            return self.save_status
         except Empty:
             pass
         return None
