@@ -24,15 +24,11 @@ class SavingStatus:
 
 
 class StackSaver(Process):
-    def __init__(
-        self, data_queue, start_saving: Event, stop_signal: Event, n_frames_queue
-    ):
+    def __init__(self, stop_signal, data_queue, n_frames_queue):
         super().__init__()
-        self.data_queue = data_queue
         self.stop_signal = stop_signal
-        self.save_end_signal = Event()
-        self.start_saving = start_saving
-        self.stop_saving = Event()
+        self.data_queue = data_queue
+        self.saving_signal = Event()
         self.n_frames_queue = n_frames_queue
         self.saving = False
         self.saving_parameter_queue = Queue()
@@ -45,7 +41,7 @@ class StackSaver(Process):
 
     def run(self):
         while not self.stop_signal.is_set():
-            if self.start_saving.is_set() and self.save_parameters is not None:
+            if self.saving_signal.is_set() and self.save_parameters is not None:
                 self.save_loop()
             else:
                 self.receive_save_parameters()
@@ -61,6 +57,7 @@ class StackSaver(Process):
                 *self.save_parameters.plane_size,
             ),
         )
+        print("Starting save loop")
         i_received = 0
         self.i_in_plane = 0
         self.i_block = 0
@@ -68,8 +65,8 @@ class StackSaver(Process):
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
         while (
             i_received < n_total
+            and self.saving_signal.is_set()
             and not self.stop_signal.is_set()
-            and not self.save_end_signal.is_set()
         ):
             try:
                 self.save_parameters.n_t = self.n_frames_queue.get(timeout=0.001)
@@ -91,8 +88,8 @@ class StackSaver(Process):
         self.dataset.shape_full = new_shape
         if self.i_block > 0:
             self.dataset.finalize()
-        self.start_saving.clear()
-        self.stop_signal.clear()
+
+        self.saving_signal.clear()
         self.save_parameters = None
 
     def cast(self, frame):
@@ -119,6 +116,7 @@ class StackSaver(Process):
             Path(self.save_parameters.output_dir)
             / "original/{:04d}.h5".format(self.i_block),
             {"stack_4D": self.current_data},
+            compression="blosc",
         )
         self.i_in_plane = 0
         self.i_block += 1

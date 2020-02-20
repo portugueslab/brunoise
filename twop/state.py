@@ -43,7 +43,7 @@ class ScanningSettings(ParametrizedQt):
         self.name = "scanning"
         self.aspect_ratio = Param(1.0, (0.2, 5.0))
         self.voltage = Param(3.0, (0.3, 4.0))
-        self.framerate = Param(4.0, (0.1, 10.0))
+        self.framerate = Param(2.0, (0.1, 10.0))
         self.reset_shutter = Param(False)
         self.binning = Param(10, (1, 50))
         self.output_rate_khz = Param(400, (50, 2000))
@@ -118,10 +118,7 @@ class ExperimentState(QObject):
         self.save_queue = ArrayQueue(max_mbytes=800)
 
         self.saver = StackSaver(
-            self.save_queue,
-            self.experiment_start_event,
-            self.scanner.stop_event,
-            self.scanner.n_frames_queue,
+            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue,
         )
         self.save_status: Optional[SavingStatus] = None
 
@@ -152,8 +149,7 @@ class ExperimentState(QObject):
         self.scanner.parameter_queue.put(params_to_send)
         if first_plane:
             self.send_save_params()
-            self.saver.save_end_signal.clear()
-            self.saving = True
+            self.saver.saving_signal.set()
         self.experiment_start_event.set()
         return True
 
@@ -161,10 +157,11 @@ class ExperimentState(QObject):
         self.saving = False
         self.experiment_start_event.clear()
 
-        if not force and self.save_status.i_z < self.save_status.target_params.n_z:
+        if not force and self.save_status.i_z + 1 < self.save_status.target_params.n_z:
+            print("Advancing in Z")
             self.advance_plane()
         else:
-            self.saver.save_end_signal.set()
+            self.saver.saving_signal.clear()
             self.restart_scanning()
 
     def restart_scanning(self):
@@ -188,10 +185,10 @@ class ExperimentState(QObject):
     def get_image(self):
         try:
             image = -self.reconstructor.output_queue.get(timeout=0.001)
-            if self.saving and self.saver.start_saving.is_set():
+            if self.saving and self.saver.saving_signal.is_set():
                 if (
                     self.save_status is not None
-                    and self.save_status.i_t == self.save_status.target_params.n_t
+                    and self.save_status.i_t + 1 == self.save_status.target_params.n_t
                 ):
                     self.end_experiment()
                 self.save_queue.put(image)

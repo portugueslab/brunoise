@@ -20,6 +20,7 @@ from math import ceil
 class ScanningState(Enum):
     PREVIEW = 1
     EXPERIMENT_RUNNING = 2
+    WAITING_DZ = 3
 
 
 @dataclass
@@ -135,9 +136,21 @@ class Scanner(Process):
             "/Dev1/ao/StartTrigger", Edge.RISING
         )
 
-    def wait_for_experiment_start(self):
-        while not self.experiment_start_event.is_set():
-            sleep(0.00001)
+    def check_start_plane(self):
+        if self.scanning_parameters.scanning_state == ScanningState.EXPERIMENT_RUNNING:
+            while not self.experiment_start_event.is_set():
+                sleep(0.00001)
+        print("Start is set")
+
+    def calculate_duration(self):
+        try:
+            duration = self.duration_queue.get(timeout=0.0001)
+            self.scanning_parameters.n_frames = (
+                int(ceil(duration / frame_duration(self.scanning_parameters))) + 1
+            )
+            self.n_frames_queue.put(self.scanning_parameters.n_frames)
+        except Empty:
+            pass
 
     def scan_loop(self, read_task, write_task):
         writer = AnalogMultiChannelWriter(write_task.out_stream)
@@ -145,22 +158,17 @@ class Scanner(Process):
 
         first_write = True
         i_acquired = 0
-        print("Started scan loop")
+        print("Started scan loop with", str(self.scanning_parameters))
         while not self.stop_event.is_set() and (
             not self.scanning_parameters.scanning_state
             == ScanningState.EXPERIMENT_RUNNING
             or i_acquired < self.scanning_parameters.n_frames
         ):
             # The first write has to be defined before the task starts
-            print("Acquired frame {}".format(i_acquired))
             try:
                 writer.write_many_sample(self.write_signals)
-                if (
-                    self.scanning_parameters.scanning_state
-                    == ScanningState.EXPERIMENT_RUNNING
-                    and i_acquired == 0
-                ):
-                    self.wait_for_experiment_start()
+                if i_acquired == 0:
+                    self.check_start_plane()
                 if first_write:
                     read_task.start()
                     write_task.start()
@@ -176,6 +184,9 @@ class Scanner(Process):
                 break
 
             self.data_queue.put(self.read_buffer[0, :])
+            print("Acquired frame {}".format(i_acquired))
+            # if new parameters have been received and changed, update
+            # them, breaking out of the loop if the experiment is not runnign
             try:
                 self.new_parameters = self.parameter_queue.get(timeout=0.0001)
                 if self.new_parameters != self.scanning_parameters and (
@@ -186,14 +197,10 @@ class Scanner(Process):
                     break
             except Empty:
                 pass
-            try:
-                duration = self.duration_queue.get(timeout=0.0001)
-                self.scanning_parameters.n_frames = (
-                    int(ceil(duration / frame_duration(self.scanning_parameters))) + 1
-                )
-                self.n_frames_queue.put(self.scanning_parameters.n_frames)
-            except Empty:
-                pass
+
+            # calculate duration
+            self.calculate_duration()
+        self.experiment_start_event.clear()
 
     def toggle_shutter(self, shutter_task):
         shutter_task.write(False, auto_start=True)

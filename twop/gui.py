@@ -68,7 +68,7 @@ class ExperimentControl(QWidget):
             self.plane_progress.setValue(sstatus.i_t)
             self.stack_progress.setMaximum(sstatus.target_params.n_z)
             self.stack_progress.setValue(sstatus.i_z)
-        if self.state.save_status == False:
+        if self.state.saving == False:
             self.startstop_button.setText("Start recording")
 
 
