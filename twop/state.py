@@ -118,7 +118,7 @@ class ExperimentState(QObject):
         self.save_queue = ArrayQueue(max_mbytes=800)
 
         self.saver = StackSaver(
-            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue,
+            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue
         )
         self.save_status: Optional[SavingStatus] = None
 
