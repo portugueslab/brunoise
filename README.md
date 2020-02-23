@@ -74,6 +74,7 @@ to the image
 - [X] Image display
     * [X] just display
     * [ ] ROI for live signal view (Hagar)
+    * [ ] using the Napari library for image viewing (history of acquired images, two-channel view when red channel is implemented, gamma etc adjustments)
     * [ ] Temporal averaging
 
 - [X] Stage control
@@ -105,6 +106,6 @@ bits about networking and zeromq, look at lightsheet software (Ema)
 # Notes on the program architecture
 Everything that handles the microscope hardware comes together in the ExperimentState.
 Things that user set are called Settings (handled via lightparam for automated GUI creation), and the hardware-related things that are computed from
-the user settings are called parameters.
+the user settings are called Parameters (e.g. `ScanningParameters`).
 
-GUI code should only access the hardware through the state
+GUI code should only access the hardware through the `ExperimentState`

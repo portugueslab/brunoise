@@ -34,7 +34,7 @@ class ExperimentSettings(ParametrizedQt):
         self.name = "recording"
         self.n_planes = Param(1, (1, 500))
         self.dz = Param(1.0, (0.1, 20.0), unit="um")
-        self.save_dir = Param("", gui=False)
+        self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
 
 
 class ScanningSettings(ParametrizedQt):
@@ -175,7 +175,8 @@ class ExperimentState(QObject):
         self.start_experiment(first_plane=False)
 
     def close_setup(self):
-        # Return Newport rotatory servo to "Not referenced" AKA stand-by state
+        for axis, motor in self.motors.items():
+            motor.end_session()
         self.power_controller.terminate_connection()
         self.scanner.stop_event.set()
         self.end_event.set()
@@ -206,7 +207,7 @@ class ExperimentState(QObject):
     def send_save_params(self):
         self.saver.saving_parameter_queue.put(
             SavingParameters(
-                output_dir=Path(r"C:\Users\portugueslab\Desktop\test\python"),
+                output_dir=Path(self.experiment_settings.save_dir),
                 plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
                 n_z=self.experiment_settings.n_planes,
             )

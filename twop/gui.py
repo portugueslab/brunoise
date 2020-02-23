@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QLabel,
     QProgressBar,
+    QFileDialog,
 )
 from state import ExperimentState, ScanningParameters, frame_duration
 
@@ -30,8 +31,11 @@ class CalculatedParameterDisplay(QWidget):
     def display_scanning_parameters(self, sp: ScanningParameters):
         self.lbl_frameinfo.setText(
             "Resolution: {} x {}\n".format(sp.n_x, sp.n_y)
-            + "Frame duration {:03f}\n".format(frame_duration(sp))
+            + "Frame duration {:.3f}\n".format(frame_duration(sp))
             + "Extra pixels {}".format(sp.n_extra)
+            + "Frame scanning frequency {:.2f}".format(
+                sp.sample_rate_out / (2 * (sp.n_x + sp.n_turn))
+            )
         )
 
 
@@ -40,6 +44,10 @@ class ExperimentControl(QWidget):
         super().__init__()
         self.state = state
         self.experiment_settings_gui = ParameterGui(state.experiment_settings)
+        self.save_location_button = QPushButton(
+            "Save to: " + state.experiment_settings.save_dir
+        )
+        self.save_location_button.clicked.connect(self.set_save_location)
         self.startstop_button = QPushButton("Start recording")
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
@@ -49,6 +57,7 @@ class ExperimentControl(QWidget):
 
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.experiment_settings_gui)
+        self.layout().addWidget(self.save_location_button)
         self.layout().addWidget(self.startstop_button)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
@@ -60,6 +69,10 @@ class ExperimentControl(QWidget):
         else:
             if self.state.start_experiment():
                 self.startstop_button.setText("Stop recording")
+
+    def set_save_location(self):
+        save_dir = QFileDialog.getExistingDirectory()
+        self.state.experiment_settings.save_dir = save_dir
 
     def update(self):
         sstatus = self.state.get_save_status()

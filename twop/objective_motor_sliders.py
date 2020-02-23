@@ -27,11 +27,6 @@ class MotionControlXYZ(QWidget):
         self.win_z = MotorSlider(name="z", motor=mot_z)
         self.layout().addWidget(self.win_z)
 
-    def end_session(self):
-        self.win_x.close_event()
-        self.win_y.close_event()
-        self.win_z.close_event()
-
 
 class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
     def __init__(self, *args, motor=None, pos=None, **kwargs):
@@ -69,7 +64,7 @@ class MotorSlider(QWidget):
     sig_changed = pyqtSignal(float)
     sig_end_session = pyqtSignal()
 
-    def __init__(self, motor=None, name=""):
+    def __init__(self, motor=None, move_limit_low=-3, move_limit_high=3, name=""):
         super().__init__()
         self.name = name
         self.grid_layout = QGridLayout()
@@ -77,45 +72,32 @@ class MotorSlider(QWidget):
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
         self.spin_val_desired_pos = QDoubleSpinBox()
         self.spin_val_actual_pos = QDoubleSpinBox()
-        value = motor.home_pos
-        min_range = value - 3
-        max_range = value + 3
-        self.slider = PrecisionSingleSliderMotorControl(
-            default_value=value,
-            min=min_range,
-            max=max_range,
-            pos=motor.home_pos,
-            motor=motor,
-        )
 
-        self.spin_val_desired_pos.setRange(min_range, max_range)
-        self.spin_val_actual_pos.setRange(min_range, max_range)
-        min = value - 1
-        max = value + 1
+        value = 0  # motor.home_pos
+        min_range = value + move_limit_low
+        max_range = value + move_limit_high
+
         self.slider = PrecisionSingleSliderMotorControl(
-            default_value=value, min=min, max=max, pos=motor.home_pos, motor=motor
+            default_value=value, min=min_range, max=max_range, pos=value, motor=motor
         )
-        self.spin_val_desired_pos.setValue(value)
-        self.spin_val_actual_pos.setValue(value)
-        self.spin_val_desired_pos.setRange(min, max)
-        self.spin_val_actual_pos.setRange(min, max)
-        self.spin_val_desired_pos.setDecimals(4)
-        self.spin_val_actual_pos.setDecimals(4)
-        self.spin_val_desired_pos.setSingleStep(0.001)
-        self.spin_val_actual_pos.setSingleStep(0.001)
-        self.spin_val_desired_pos.setValue(value)
-        self.spin_val_actual_pos.setValue(value)
+        for spin_val in [self.spin_val_actual_pos, self.spin_val_desired_pos]:
+            spin_val.setRange(min_range, max_range)
+            spin_val.setDecimals(4)
+            spin_val.setSingleStep(0.001)
+            spin_val.setValue(value)
+
+        self.spin_val_actual_pos.setEnabled(False)
         self.spin_val_desired_pos.valueChanged.connect(self.update_slider)
         self.label_name = QLabel(name)
         self.label_name.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.grid_layout.addWidget(self.label_name, 0, 1)
-        self.grid_layout.addWidget(self.spin_val_actual_pos, 0, 0)
-        self.grid_layout.addWidget(self.spin_val_desired_pos, 1, 0)
-        self.grid_layout.addWidget(self.slider, 1, 1, 1, 5)
+        self.grid_layout.addWidget(self.label_name, 0, 0, 2, 1)
+        self.grid_layout.addWidget(self.slider, 0, 1, 2, 1)
+        self.grid_layout.addWidget(self.spin_val_actual_pos, 0, 2)
+        self.grid_layout.addWidget(self.spin_val_desired_pos, 1, 2)
+
         self.setLayout(self.grid_layout)
         self.slider.sig_changed.connect(self.update_values)
         self.sig_changed.connect(self.slider.motor.move_abs)
-        self.sig_end_session.connect(self.slider.motor.end_session)
 
         self._timer_painter = QTimer(self)
         self._timer_painter.timeout.connect(self.update_actual_pos)
@@ -142,14 +124,11 @@ class MotorSlider(QWidget):
         self.spin_val_actual_pos.setValue(new_val)
         self.slider.update()
 
-    def close_event(self):
-        self.sig_end_session.emit()
-
 
 if __name__ == "__main__":
     app = QApplication([])
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     layout = QHBoxLayout()
-    win = MotionControlXYZ()
+    win = MotionControlXYZ(None, None, None)
     win.show()
     app.exec_()
