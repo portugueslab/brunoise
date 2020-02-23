@@ -116,6 +116,8 @@ class ViewingWidget(QWidget):
         self.state = state
         self.setLayout(QVBoxLayout())
         self.image_viewer = pg.ImageView()
+        self.image_viewer.ui.roiBtn.hide()
+        self.image_viewer.ui.menuBtn.hide()
         self.layout().addWidget(self.image_viewer)
         self.first_image = True
 

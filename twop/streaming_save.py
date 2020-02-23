@@ -1,12 +1,12 @@
 from multiprocessing import Process, Event, Queue
 from dataclasses import dataclass
-from fimpy.core.split_dataset import EmptyH5Dataset
 from pathlib import Path
 from typing import Optional
 from queue import Empty
 import flammkuchen as fl
 import numpy as np
 import shutil
+import json
 
 
 @dataclass
@@ -36,9 +36,9 @@ class StackSaver(Process):
         self.save_parameters: Optional[SavingParameters] = None
         self.i_in_plane = 0
         self.i_block = 0
-        self.dataset = None
         self.current_data = None
         self.saved_status_queue = Queue()
+        self.dtype = np.float32
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -54,21 +54,16 @@ class StackSaver(Process):
         ).is_file():
             shutil.rmtree(Path(self.save_parameters.output_dir) / "original")
 
-        self.dataset = EmptyH5Dataset(
-            root=self.save_parameters.output_dir,
-            name="original",
-            shape_block=(self.save_parameters.n_t, 1, *self.save_parameters.plane_size),
-            shape_full=(
-                self.save_parameters.n_t,
-                self.save_parameters.n_z,
-                *self.save_parameters.plane_size,
-            ),
+        (Path(self.save_parameters.output_dir) / "original").mkdir(
+            parents=True, exist_ok=True
         )
-
         i_received = 0
         self.i_in_plane = 0
         self.i_block = 0
-        self.current_data = np.empty(self.dataset.shape_block, dtype=np.float64)
+        self.current_data = np.empty(
+            (self.save_parameters.n_t, 1, *self.save_parameters.plane_size),
+            dtype=self.dtype,
+        )
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
         while (
             i_received < n_total
@@ -76,7 +71,7 @@ class StackSaver(Process):
             and not self.stop_signal.is_set()
         ):
             try:
-                self.save_parameters.n_t = self.n_frames_queue.get(timeout=0.001)
+                self.update_n_t(self.n_frames_queue.get(timeout=0.001))
                 n_total = self.save_parameters.n_t * self.save_parameters.n_z
             except Empty:
                 pass
@@ -87,14 +82,8 @@ class StackSaver(Process):
             except Empty:
                 pass
 
-        new_shape = (
-            self.save_parameters.n_t,
-            self.i_block,
-            *self.save_parameters.plane_size,
-        )
-        self.dataset.shape_full = new_shape
         if self.i_block > 0:
-            self.dataset.finalize()
+            self.finalize_dataset()
 
         self.saving_signal.clear()
         self.save_parameters = None
@@ -104,6 +93,13 @@ class StackSaver(Process):
         Conversion into a format appropriate for saving
         """
         return frame
+
+    def update_n_t(self, n_t):
+        if n_t != self.save_parameters.n_t:
+            self.save_parameters.n_t = n_t
+            old_data = self.current_data[: self.i_in_plane, :, :, :].copy()
+            self.current_data = np.empty((n_t, *self.current_data.shape[1:]))
+            self.current_data[: self.i_in_plane, :, :, :] = old_data
 
     def fill_dataset(self, frame):
         self.current_data[self.i_in_plane, 0, :, :] = self.cast(frame)
@@ -118,6 +114,34 @@ class StackSaver(Process):
         if self.i_in_plane == self.save_parameters.n_t:
             self.complete_plane()
 
+    def finalize_dataset(self):
+        with open(
+            (
+                Path(self.save_parameters.output_dir)
+                / "original"
+                / "stack_metadata.json"
+            ),
+            "w",
+        ) as f:
+            json.dump(
+                {
+                    "shape_full": (
+                        self.save_parameters.n_t,
+                        self.i_block,
+                        *self.current_data.shape[1:],
+                    ),
+                    "shape_block": (
+                        self.save_parameters.n_t,
+                        self.i_block,
+                        *self.current_data.shape[1:],
+                    ),
+                    "crop_start": [0, 0, 0, 0],
+                    "crop_end": [0, 0, 0, 0],
+                    "padding": [0, 0, 0, 0],
+                },
+                f,
+            )
+
     def complete_plane(self):
         fl.save(
             Path(self.save_parameters.output_dir)
@@ -127,11 +151,6 @@ class StackSaver(Process):
         )
         self.i_in_plane = 0
         self.i_block += 1
-        self.dataset.shape_full = (
-            self.save_parameters.n_t,
-            self.i_block,
-            *self.dataset.shape_full[:2],
-        )
 
     def receive_save_parameters(self):
         try:

@@ -37,7 +37,7 @@ readout from the PMT in a different frequency
 figuring out how the binning happens and photon counted or not
 managing the memory of the data
 
-- [ ] Parameters and state machine for scanning
+- [X] Parameters and state machine for scanning
 (preview, experiment running, shutter on or off)
 
 - [ ] Figure out where the image reconstruction offset of -400 at 500000Hz output rate (probably different at other rates) comes from and calculate it automatically,
@@ -53,7 +53,7 @@ and communication (parameter and array queues)
 
 - [ ] Figure out input voltage scaling and optimal formats
 
-- [ ] Data saving
+- [X] Data saving
 HDF file(s): directly split datasets
 
 - [ ] Automatic drift correction

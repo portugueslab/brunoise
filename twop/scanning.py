@@ -157,7 +157,6 @@ class Scanner(Process):
 
         first_write = True
         i_acquired = 0
-        print("Started scan loop with", str(self.scanning_parameters))
         while not self.stop_event.is_set() and (
             not self.scanning_parameters.scanning_state
             == ScanningState.EXPERIMENT_RUNNING
