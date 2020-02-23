@@ -87,10 +87,10 @@ to the image
 
 - [ ] Scanning parameter gui
     * [X] all manual parameters like in labview
-    * [ ] intuitive parameters (Diego)
+    * [X] intuitive parameters (vilim)
     * [ ] zoom in and out of the image like google maps
 
-- [ ] ZMQ synchronisation for Stytra (consult with Luigi, Ema)
+- [X] ZMQ synchronisation for Stytra (consult with Luigi, Ema)
 bits about networking and zeromq, look at lightsheet software (Ema)
 
 - [ ] Diagnostics of scan patterns: each scan pattern causes image deformations depending on other paramteres. 
@@ -102,6 +102,7 @@ bits about networking and zeromq, look at lightsheet software (Ema)
 - [ ] ablations
 - [ ] interlacing scanning pattern
 - [ ] spiral scanning pattern
+- [ ] resilient mode: if something goes wrong with scanning, restart stytra for this plane
 
 # Notes on the program architecture
 Everything that handles the microscope hardware comes together in the ExperimentState.
