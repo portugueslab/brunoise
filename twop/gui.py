@@ -11,13 +11,13 @@ from PyQt5.QtWidgets import (
     QFileDialog,
 )
 from state import ExperimentState, ScanningParameters, frame_duration
+from twop.objective_motor_sliders import MotionControlXYZ
 
 import pyqtgraph as pg
 import qdarkstyle
+from pathlib import Path
 
 from lightparam.gui import ParameterGui
-
-from twop.objective_motor_sliders import MotionControlXYZ
 
 
 class CalculatedParameterDisplay(QWidget):
@@ -32,8 +32,8 @@ class CalculatedParameterDisplay(QWidget):
         self.lbl_frameinfo.setText(
             "Resolution: {} x {}\n".format(sp.n_x, sp.n_y)
             + "Frame duration {:.3f}\n".format(frame_duration(sp))
-            + "Extra pixels {}".format(sp.n_extra)
-            + "Frame scanning frequency {:.2f}".format(
+            + "Extra pixels {}\n".format(sp.n_extra)
+            + "Frame scanning frequency {:.2f}Hz".format(
                 sp.sample_rate_out / (2 * (sp.n_x + sp.n_turn))
             )
         )
@@ -44,11 +44,11 @@ class ExperimentControl(QWidget):
         super().__init__()
         self.state = state
         self.experiment_settings_gui = ParameterGui(state.experiment_settings)
-        self.save_location_button = QPushButton(
-            "Save to: " + state.experiment_settings.save_dir
-        )
+        self.save_location_button = QPushButton()
+        self.set_locationbutton()
         self.save_location_button.clicked.connect(self.set_save_location)
-        self.startstop_button = QPushButton("Start recording")
+        self.startstop_button = QPushButton()
+        self.set_saving()
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
         self.plane_progress.setFormat("Frame %v of %m")
@@ -62,17 +62,42 @@ class ExperimentControl(QWidget):
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
 
+    def set_saving(self):
+        self.startstop_button.setText("Start recording")
+        self.startstop_button.setStyleSheet(
+            "background-color:#1d824f; border-color:#1c9e66"
+        )
+
+    def set_notsaving(self):
+        self.startstop_button.setText("Stop recording")
+        self.startstop_button.setStyleSheet(
+            "background-color:#82271d; border-color:#9e391c"
+        )
+
     def toggle_start(self):
         if self.state.saving:
             self.state.end_experiment(force=True)
-            self.startstop_button.setText("Start recording")
+            self.set_saving()
         else:
             if self.state.start_experiment():
-                self.startstop_button.setText("Stop recording")
+                self.set_notsaving()
+
+    def set_locationbutton(self):
+        pathtext = self.state.experiment_settings.save_dir
+        # check if there is a stack in this location
+        if (Path(pathtext) / "original" / "stack_metadata.json").is_file():
+            self.save_location_button.setText("Overwrite " + pathtext)
+            self.save_location_button.setStyleSheet(
+                "background-color:#b5880d; border-color:#fcc203"
+            )
+        else:
+            self.save_location_button.setText("Save in " + pathtext)
+            self.save_location_button.setStyleSheet("")
 
     def set_save_location(self):
         save_dir = QFileDialog.getExistingDirectory()
         self.state.experiment_settings.save_dir = save_dir
+        self.set_locationbutton()
 
     def update(self):
         sstatus = self.state.get_save_status()
@@ -81,8 +106,8 @@ class ExperimentControl(QWidget):
             self.plane_progress.setValue(sstatus.i_t)
             self.stack_progress.setMaximum(sstatus.target_params.n_z)
             self.stack_progress.setValue(sstatus.i_z)
-        if self.state.saving == False:
-            self.startstop_button.setText("Start recording")
+        if not self.state.saving:
+            self.set_saving()
 
 
 class ViewingWidget(QWidget):
@@ -175,7 +200,6 @@ class TwopViewer(QMainWindow):
 
     def closeEvent(self, event) -> None:
         self.state.close_setup()
-        self.motor_control_slider.end_session()
         event.accept()
 
 

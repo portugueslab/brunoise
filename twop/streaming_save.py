@@ -6,6 +6,7 @@ from typing import Optional
 from queue import Empty
 import flammkuchen as fl
 import numpy as np
+import shutil
 
 
 @dataclass
@@ -35,7 +36,7 @@ class StackSaver(Process):
         self.save_parameters: Optional[SavingParameters] = None
         self.i_in_plane = 0
         self.i_block = 0
-        self.saving_dataset = None
+        self.dataset = None
         self.current_data = None
         self.saved_status_queue = Queue()
 
@@ -47,6 +48,12 @@ class StackSaver(Process):
                 self.receive_save_parameters()
 
     def save_loop(self):
+        # remove files if some are found at the save location
+        if (
+            Path(self.save_parameters.output_dir) / "original" / "stack_metadata.json"
+        ).is_file():
+            shutil.rmtree(Path(self.save_parameters.output_dir) / "original")
+
         self.dataset = EmptyH5Dataset(
             root=self.save_parameters.output_dir,
             name="original",
@@ -57,7 +64,7 @@ class StackSaver(Process):
                 *self.save_parameters.plane_size,
             ),
         )
-        print("Starting save loop")
+
         i_received = 0
         self.i_in_plane = 0
         self.i_block = 0

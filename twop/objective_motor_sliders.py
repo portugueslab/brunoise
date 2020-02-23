@@ -9,8 +9,9 @@ from PyQt5.QtWidgets import (
     QLabel,
 )
 
-from PyQt5.QtGui import QColor, QPalette
+from PyQt5.QtGui import QColor, QTextFormat
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
+from pathlib import Path
 
 
 class MotionControlXYZ(QWidget):
@@ -40,8 +41,9 @@ class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
         size = self.size()
         w = size.width()
         h = size.height()
-        pt = self.padding_top
+        pt = h // 2
         ps = self.padding_side
+
         qp.setPen(QColor(100, 100, 100))
         qp.drawLine(ps, pt, w - ps, pt)
         qp.setPen(Qt.NoPen)
@@ -73,7 +75,7 @@ class MotorSlider(QWidget):
         self.spin_val_desired_pos = QDoubleSpinBox()
         self.spin_val_actual_pos = QDoubleSpinBox()
 
-        value = 0  # motor.home_pos
+        value = motor.home_pos
         min_range = value + move_limit_low
         max_range = value + move_limit_high
 
@@ -85,11 +87,13 @@ class MotorSlider(QWidget):
             spin_val.setDecimals(4)
             spin_val.setSingleStep(0.001)
             spin_val.setValue(value)
+            spin_val.setMaximumWidth(80)
 
         self.spin_val_actual_pos.setEnabled(False)
         self.spin_val_desired_pos.valueChanged.connect(self.update_slider)
-        self.label_name = QLabel(name)
+        self.label_name = QLabel("<h3>" + name + r"<\h3>")
         self.label_name.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.label_name.setMaximumWidth(16)
         self.grid_layout.addWidget(self.label_name, 0, 0, 2, 1)
         self.grid_layout.addWidget(self.slider, 0, 1, 2, 1)
         self.grid_layout.addWidget(self.spin_val_actual_pos, 0, 2)

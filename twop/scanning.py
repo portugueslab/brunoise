@@ -140,7 +140,6 @@ class Scanner(Process):
         if self.scanning_parameters.scanning_state == ScanningState.EXPERIMENT_RUNNING:
             while not self.experiment_start_event.is_set():
                 sleep(0.00001)
-        print("Start is set")
 
     def calculate_duration(self):
         try:
@@ -184,9 +183,9 @@ class Scanner(Process):
                 break
 
             self.data_queue.put(self.read_buffer[0, :])
-            print("Acquired frame {}".format(i_acquired))
+
             # if new parameters have been received and changed, update
-            # them, breaking out of the loop if the experiment is not runnign
+            # them, breaking out of the loop if the experiment is not running
             try:
                 self.new_parameters = self.parameter_queue.get(timeout=0.0001)
                 if self.new_parameters != self.scanning_parameters and (
@@ -200,7 +199,6 @@ class Scanner(Process):
 
             # calculate duration
             self.calculate_duration()
-        self.experiment_start_event.clear()
 
     def toggle_shutter(self, shutter_task):
         shutter_task.write(False, auto_start=True)

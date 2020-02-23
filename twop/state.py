@@ -127,13 +127,16 @@ class ExperimentState(QObject):
         self.motors["y"] = MotorControl("COM6", axes="y")
         self.motors["z"] = MotorControl("COM6", axes="z")
         self.power_controller = LaserPowerControl()
-        self.saving = False
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
         self.scanner.start()
         self.reconstructor.start()
         self.saver.start()
         self.open_setup()
+
+    @property
+    def saving(self):
+        return self.saver.saving_signal.is_set()
 
     def open_setup(self):
         self.send_scan_params()
@@ -154,11 +157,9 @@ class ExperimentState(QObject):
         return True
 
     def end_experiment(self, force=False):
-        self.saving = False
         self.experiment_start_event.clear()
 
         if not force and self.save_status.i_z + 1 < self.save_status.target_params.n_z:
-            print("Advancing in Z")
             self.advance_plane()
         else:
             self.saver.saving_signal.clear()
@@ -175,7 +176,11 @@ class ExperimentState(QObject):
         self.start_experiment(first_plane=False)
 
     def close_setup(self):
-        for axis, motor in self.motors.items():
+        """ Cleanup on programe close:
+        end all parallel processes, close all communication channels
+
+        """
+        for motor in self.motors.values():
             motor.end_session()
         self.power_controller.terminate_connection()
         self.scanner.stop_event.set()
@@ -186,7 +191,7 @@ class ExperimentState(QObject):
     def get_image(self):
         try:
             image = -self.reconstructor.output_queue.get(timeout=0.001)
-            if self.saving and self.saver.saving_signal.is_set():
+            if self.saver.saving_signal.is_set():
                 if (
                     self.save_status is not None
                     and self.save_status.i_t + 1 == self.save_status.target_params.n_t
