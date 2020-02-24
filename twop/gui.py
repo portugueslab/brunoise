@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QProgressBar,
     QFileDialog,
+    QCheckBox,
 )
 from state import ExperimentState, ScanningParameters, frame_duration
 from twop.objective_motor_sliders import MotionControlXYZ
@@ -49,6 +50,7 @@ class ExperimentControl(QWidget):
         self.save_location_button.clicked.connect(self.set_save_location)
         self.startstop_button = QPushButton()
         self.set_saving()
+        self.chk_pause = QCheckBox("Pause after experiment")
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
         self.plane_progress.setFormat("Frame %v of %m")
@@ -59,6 +61,7 @@ class ExperimentControl(QWidget):
         self.layout().addWidget(self.experiment_settings_gui)
         self.layout().addWidget(self.save_location_button)
         self.layout().addWidget(self.startstop_button)
+        self.layout().addWidget(self.chk_pause)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
 
@@ -79,6 +82,7 @@ class ExperimentControl(QWidget):
             self.state.end_experiment(force=True)
             self.set_saving()
         else:
+            self.state.pause_after = self.chk_pause.isChecked()
             if self.state.start_experiment():
                 self.set_notsaving()
 
@@ -148,7 +152,7 @@ class DockedWidget(QDockWidget):
 
 
 class ScanningWidget(QWidget):
-    def __init__(self, state):
+    def __init__(self, state: ExperimentState):
         self.state = state
         super().__init__()
         self.scanning_layout = QVBoxLayout()
@@ -156,18 +160,31 @@ class ScanningWidget(QWidget):
         self.scanning_settings_gui = ParameterGui(self.state.scanning_settings)
         self.scanning_calc = CalculatedParameterDisplay()
         self.pause_button = QPushButton()
+        self.pause_button.clicked.connect(self.toggle_pause)
 
         self.scanning_layout.addWidget(self.scanning_settings_gui)
         self.scanning_layout.addWidget(self.scanning_calc)
+        self.scanning_layout.addWidget(self.pause_button)
         self.setLayout(self.scanning_layout)
 
         self.state.sig_scanning_changed.connect(self.update_calc_display)
+        self.update_button()
 
     def update_calc_display(self):
         self.scanning_calc.display_scanning_parameters(self.state.scanning_parameters)
 
     def update_button(self):
-        pass
+        if self.state.paused:
+            self.pause_button.setText("Resume")
+        else:
+            self.pause_button.setText("Pause")
+
+    def toggle_pause(self):
+        if self.state.paused:
+            self.state.restart_scanning()
+        else:
+            self.state.pause_scanning()
+        self.update_button()
 
 
 class TwopViewer(QMainWindow):

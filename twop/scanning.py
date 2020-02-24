@@ -199,6 +199,19 @@ class Scanner(Process):
             # calculate duration
             self.calculate_duration()
 
+    def pause_loop(self):
+        while not self.stop_event.is_set():
+            try:
+                self.new_parameters = self.parameter_queue.get(timeout=0.001)
+                if self.new_parameters != self.scanning_parameters and (
+                    self.scanning_parameters.scanning_state
+                    != ScanningState.EXPERIMENT_RUNNING
+                    or self.new_parameters.scanning_state == ScanningState.PREVIEW
+                ):
+                    break
+            except Empty:
+                pass
+
     def toggle_shutter(self, shutter_task):
         shutter_task.write(False, auto_start=True)
         shutter_task.write(True, auto_start=True)
@@ -223,7 +236,10 @@ class Scanner(Process):
                 self.setup_tasks(read_task, write_task, shutter_task)
                 if self.scanning_parameters.reset_shutter or toggle_shutter:
                     self.toggle_shutter(shutter_task)
-                self.scan_loop(read_task, write_task)
+                if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
+                    self.pause_loop()
+                else:
+                    self.scan_loop(read_task, write_task)
 
 
 class ImageReconstructor(Process):

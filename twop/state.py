@@ -107,6 +107,7 @@ class ExperimentState(QObject):
         self.experiment_start_event = Event()
         self.scanning_settings = ScanningSettings()
         self.experiment_settings = ExperimentSettings()
+        self.pause_after = False
 
         self.parameter_tree = ParameterTree()
         self.parameter_tree.add(self.scanning_settings)
@@ -141,6 +142,8 @@ class ExperimentState(QObject):
         self.saver.start()
         self.open_setup()
 
+        self.paused = False
+
     @property
     def saving(self):
         return self.saver.saving_signal.is_set()
@@ -170,12 +173,22 @@ class ExperimentState(QObject):
             self.advance_plane()
         else:
             self.saver.saving_signal.clear()
-            self.restart_scanning()
+            if self.pause_after:
+                self.pause_scanning()
+            else:
+                self.restart_scanning()
 
     def restart_scanning(self):
         params_to_send = convert_params(self.scanning_settings)
         params_to_send.scanning_state = ScanningState.PREVIEW
         self.scanner.parameter_queue.put(params_to_send)
+        self.paused = False
+
+    def pause_scanning(self):
+        params_to_send = convert_params(self.scanning_settings)
+        params_to_send.scanning_state = ScanningState.PAUSED
+        self.scanner.parameter_queue.put(params_to_send)
+        self.paused = True
 
     def advance_plane(self):
         self.motors["z"].move_rel(self.experiment_settings.dz / 1000)
