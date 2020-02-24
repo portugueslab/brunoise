@@ -20,12 +20,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from typing import Optional
 from enum import Enum
 from time import sleep
-
-
-class GlobalState(Enum):
-    PREVIEW = 1
-    WAIT_FOR_STYTRA = 2
-    SCANNING_PLANE = 3
+from sequence_diagram import SequenceDiagram
 
 
 class ExperimentSettings(ParametrizedQt):
@@ -95,8 +90,12 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
 class ExperimentState(QObject):
     sig_scanning_changed = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, diagnostics=False):
         super().__init__()
+        if diagnostics:
+            self.sequence_queue = Queue()
+            self.sequence_diagram = SequenceDiagram(self.sequence_queue, "main")
+
         self.experiment_start_event = Event()
         self.scanning_settings = ScanningSettings()
         self.experiment_settings = ExperimentSettings()

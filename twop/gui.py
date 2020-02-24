@@ -147,6 +147,28 @@ class DockedWidget(QDockWidget):
             self.setWindowTitle(title)
 
 
+class ScanningWidget(QWidget):
+    def __init__(self, state):
+        self.state = state
+        super().__init__()
+        self.scanning_layout = QVBoxLayout()
+
+        self.scanning_settings_gui = ParameterGui(self.state.scanning_settings)
+        self.scanning_calc = CalculatedParameterDisplay()
+        self.pause_button = QPushButton()
+
+        self.scanning_layout.addWidget(self.scanning_settings_gui)
+        self.scanning_layout.addWidget(self.scanning_calc)
+
+        self.state.sig_scanning_changed.connect(self.update_calc_display)
+
+    def update_calc_display(self):
+        self.scanning_calc.display_scanning_parameters(self.state.scanning_parameters)
+
+    def update_button(self):
+        pass
+
+
 class TwopViewer(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -157,26 +179,15 @@ class TwopViewer(QMainWindow):
         self.image_display = ViewingWidget(self.state)
         self.setCentralWidget(self.image_display)
 
-        self.scanning_layout = QVBoxLayout()
-
-        self.scanning_settings_gui = ParameterGui(self.state.scanning_settings)
-        self.scanning_calc = CalculatedParameterDisplay()
-
-        self.scanning_layout.addWidget(self.scanning_settings_gui)
-        self.scanning_layout.addWidget(self.scanning_calc)
-
-        self.scanning_dock = DockedWidget(
-            layout=self.scanning_layout, title="Scanning settings"
-        )
-
+        self.scanning_widget = ScanningWidget(self.state)
         self.experiment_widget = ExperimentControl(self.state)
 
-        x = self.state.motors["x"]
-        y = self.state.motors["y"]
-        z = self.state.motors["z"]
-        self.motor_control_slider = MotionControlXYZ(x, y, z)
+        self.motor_control_slider = MotionControlXYZ(self.state.motors)
 
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.scanning_dock)
+        self.addDockWidget(
+            Qt.LeftDockWidgetArea,
+            DockedWidget(widget=self.scanning_widget, title="Scanning settings"),
+        )
         self.addDockWidget(
             Qt.RightDockWidgetArea,
             DockedWidget(widget=self.motor_control_slider, title="Stage control"),
@@ -188,17 +199,11 @@ class TwopViewer(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
-        self.timer.timeout.connect(self.experiment_widget.update)
         self.timer.start()
-
-        self.state.sig_scanning_changed.connect(self.update_calc_display)
 
     def update(self):
         self.image_display.update()
         self.experiment_widget.update()
-
-    def update_calc_display(self):
-        self.scanning_calc.display_scanning_parameters(self.state.scanning_parameters)
 
     def closeEvent(self, event) -> None:
         self.state.close_setup()

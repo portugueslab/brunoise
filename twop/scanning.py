@@ -20,7 +20,7 @@ from math import ceil
 class ScanningState(Enum):
     PREVIEW = 1
     EXPERIMENT_RUNNING = 2
-    WAITING_DZ = 3
+    PAUSED = 3
 
 
 @dataclass
@@ -206,20 +206,22 @@ class Scanner(Process):
         sleep(0.05)
 
     def run_scanning(self):
-        scanning_patterns.reconstruct_image_pattern(
-            np.roll(self.read_buffer[0, :], self.mystery_offset),
-            self.raw_x,
-            self.raw_y,
-            (self.n_y, self.n_x),
-            self.n_bin,
-        )
-
         while not self.stop_event.is_set():
+            toggle_shutter = False
+            if (
+                self.new_parameters.scanning_state == ScanningState.PAUSED
+                and self.scanning_parameters.scanning_state != ScanningState.PAUSED
+            ) or (
+                self.new_parameters.scanning_state != ScanningState.PAUSED
+                and self.scanning_parameters.scanning_state == ScanningState.PAUSED
+            ):
+                toggle_shutter = True
+
             self.scanning_parameters = self.new_parameters
             self.compute_scan_parameters()
             with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task)
-                if self.scanning_parameters.reset_shutter:
+                if self.scanning_parameters.reset_shutter or toggle_shutter:
                     self.toggle_shutter(shutter_task)
                 self.scan_loop(read_task, write_task)
 

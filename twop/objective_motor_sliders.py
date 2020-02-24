@@ -9,24 +9,18 @@ from PyQt5.QtWidgets import (
     QLabel,
 )
 
-from PyQt5.QtGui import QColor, QTextFormat
+from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
-from pathlib import Path
 
 
 class MotionControlXYZ(QWidget):
-    def __init__(self, mot_x, mot_y, mot_z):
+    def __init__(self, motors):
         super().__init__()
         self.setLayout(QGridLayout())
 
-        self.win_x = MotorSlider(name="x", motor=mot_x)
-        self.layout().addWidget(self.win_x)
-
-        self.win_y = MotorSlider(name="y", motor=mot_y)
-        self.layout().addWidget(self.win_y)
-
-        self.win_z = MotorSlider(name="z", motor=mot_z)
-        self.layout().addWidget(self.win_z)
+        for key, value in motors.items():
+            wid = MotorSlider(name=key, motor=value)
+            self.layout().addWidget(wid)
 
 
 class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
