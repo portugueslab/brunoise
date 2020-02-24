@@ -33,7 +33,7 @@ class CalculatedParameterDisplay(QWidget):
             "Resolution: {} x {}\n".format(sp.n_x, sp.n_y)
             + "Frame duration {:.3f}\n".format(frame_duration(sp))
             + "Extra pixels {}\n".format(sp.n_extra)
-            + "Frame scanning frequency {:.2f}Hz".format(
+            + "Line scanning frequency {:.2f}Hz".format(
                 sp.sample_rate_out / (2 * (sp.n_x + sp.n_turn))
             )
         )
@@ -159,6 +159,7 @@ class ScanningWidget(QWidget):
 
         self.scanning_layout.addWidget(self.scanning_settings_gui)
         self.scanning_layout.addWidget(self.scanning_calc)
+        self.setLayout(self.scanning_layout)
 
         self.state.sig_scanning_changed.connect(self.update_calc_display)
 

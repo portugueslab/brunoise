@@ -73,9 +73,17 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
         n_extra = int(round(n_total - (n_x + 2 * n_turn) * n_y + 2 * n_turn))
         i_extra += 1
 
+    voltage_max = st.voltage
+    if st.aspect_ratio >= 1:
+        voltage_x = voltage_max
+        voltage_y = voltage_x / st.aspect_ratio
+    else:
+        voltage_x = voltage_max * st.aspect_ratio
+        voltage_y = voltage_max
+
     sp = ScanningParameters(
-        voltage_x=st.voltage,
-        voltage_y=st.voltage,
+        voltage_x=voltage_x,
+        voltage_y=voltage_y,
         n_x=n_x,
         n_y=n_y,
         n_turn=n_turn,

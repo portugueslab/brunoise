@@ -48,7 +48,7 @@ def simple_scanning_pattern(n_x, n_y, n_turn, n_extra_points=20, pause_x=False):
 
 
 @jit(nopython=True)
-def reconstruct_image_pattern(signal, scan_x, scan_y, image_size, n_bin=10):
+def reconstruct_image_pattern(signal, scan_y, scan_x, image_size, n_bin=10):
     """
     Reconstructs an image given an integrar scanning pattern
     """
