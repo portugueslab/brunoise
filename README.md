@@ -27,8 +27,8 @@ basic algebra and looking up NI documentation
 on paper and python functions
 e.g. given the zoom and the target aspect ratio, calculate the scanning pattern
      * [x] Calculate single plane duration
-     * [x] See how the paramters have to be adjusted (scanning stopped) to get an _exact_ plane duration
-     * [ ] Decide on parameters for user to input for scanning and calculate the rest from those (e.g. resolution, aspect ratio, frame rate)
+     * [x] See how the parameters have to be adjusted (scanning stopped) to get an _exact_ plane duration
+     * [ ] Decide on parameters for user to input for scanning (sample rate output is not intuitive) and calculate the rest from those (e.g. resolution, aspect ratio, frame rate)
      * [ ] Investigate what parameters are possible in the NI system for input and output rates
      * [ ] Look at galvo responses to see how far the speed can be pushed before they fly out or burn
 
@@ -40,8 +40,9 @@ managing the memory of the data
 - [X] Parameters and state machine for scanning
 (preview, experiment running, shutter on or off)
 
-- [ ] Figure out where the image reconstruction offset of -400 at 500000Hz output rate (probably different at other rates) comes from and calculate it automatically,
-or fix the timing so it is not needed. 
+- [X] Figure out where the image reconstruction offset of -400 at 500000Hz output rate (probably different at other rates) comes from and calculate it automatically,
+
+- [ ] fix things so that the mystery offset is not needed. 
 
 - [X]  Information streaming
 (Luigi or Vilim)
@@ -51,7 +52,7 @@ yet has to be controllable through it and stream information back
 Separate process for the hardware control
 and communication (parameter and array queues)
 
-- [ ] Figure out input voltage scaling and optimal formats
+- [ ] Figure out input voltage scaling from the ADC (is it 12-bit?) and optimal saving format
 
 - [X] Data saving
 HDF file(s): directly split datasets
@@ -74,7 +75,7 @@ to the image
 - [X] Image display
     * [X] just display
     * [ ] ROI for live signal view (Hagar)
-    * [ ] using the Napari library for image viewing (history of acquired images, two-channel view when red channel is implemented, gamma etc adjustments)
+    * [ ] using the Napari library for image viewing (history of acquired images in a rolling buffer, two-channel view when red channel is implemented, gamma etc adjustments)
     * [ ] Temporal averaging
 
 - [X] Stage control

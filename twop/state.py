@@ -42,7 +42,6 @@ class ScanningSettings(ParametrizedQt):
         self.reset_shutter = Param(False)
         self.binning = Param(10, (1, 50))
         self.output_rate_khz = Param(400, (50, 2000))
-        self.mystery_offset = Param(-320, (-1000, 1000))
         self.laser_power = Param(10.0, (0, 100))
         self.n_turn = Param(10, (0, 100))
         self.n_extra_init = Param(100, (0, 100))
@@ -73,6 +72,7 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
         n_extra = int(round(n_total - (n_x + 2 * n_turn) * n_y + 2 * n_turn))
         i_extra += 1
 
+    mystery_offset = -int(round(st.output_rate_khz * 0.8))
     voltage_max = st.voltage
     if st.aspect_ratio >= 1:
         voltage_x = voltage_max
@@ -88,9 +88,9 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
         n_y=n_y,
         n_turn=n_turn,
         n_extra=n_extra,
-        sample_rate_out=st.output_rate_khz * 1000,
+        sample_rate_out=sample_rate,
         reset_shutter=st.reset_shutter,
-        mystery_offset=st.mystery_offset,
+        mystery_offset=mystery_offset,
     )
     return sp
 
