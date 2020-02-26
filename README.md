@@ -91,6 +91,8 @@ to the image
     * [X] intuitive parameters (vilim)
     * [ ] zoom in and out of the image like google maps
 
+- [ ] Saving settings (zoom level, frequency etc) in settings files (so each experiment set can have exactly the same settings)
+
 - [X] ZMQ synchronisation for Stytra (consult with Luigi, Ema)
 bits about networking and zeromq, look at lightsheet software (Ema)
 
@@ -102,6 +104,7 @@ bits about networking and zeromq, look at lightsheet software (Ema)
 - [ ] red PMT
 - [ ] ablations
 - [ ] interlacing scanning pattern
+- [ ] scanning multiple regions 
 - [ ] spiral scanning pattern
 - [ ] resilient mode: if something goes wrong with scanning, restart stytra for this plane
 
