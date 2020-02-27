@@ -70,6 +70,8 @@ HDF file(s): directly split datasets
 - [ ] Add the Pockel cell and write the extra binary patter from the parts of the scanning pattern not relevant 
 to the image
 
+- [ ] Depending on the aspect ration, choose different mirrors for fast or slow (right now the fast scanning always happens on x)
+
 ## GUI
 
 - [X] Image display

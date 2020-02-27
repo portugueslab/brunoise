@@ -113,18 +113,3 @@ class MotorControl:
         elif axes == "z":
             axes = 3
         return axes
-
-
-if __name__ == "__main__":
-    motor = MotorControl("COM5", axes="x")
-    pos = motor.get_position()
-    print("start pos:", pos)
-    new_pos = 0.01
-    print("new pos:", new_pos)
-    motor.move_abs(displacement=new_pos)
-    try:
-        motor.motor.query("1PA0.01")
-    except pyvisa.VisaIOError:
-        pass
-    pos = motor.get_position()
-    print("moved to:", pos)
