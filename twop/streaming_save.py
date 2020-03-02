@@ -25,12 +25,13 @@ class SavingStatus:
 
 
 class StackSaver(Process):
-    def __init__(self, stop_signal, data_queue, n_frames_queue):
+    def __init__(self, stop_signal, data_queue, n_frames_queue, reference_event):
         super().__init__()
         self.stop_signal = stop_signal
         self.data_queue = data_queue
         self.saving_signal = Event()
         self.n_frames_queue = n_frames_queue
+        self.reference_event = reference_event
         self.saving = False
         self.saving_parameter_queue = Queue()
         self.save_parameters: Optional[SavingParameters] = None
@@ -143,14 +144,17 @@ class StackSaver(Process):
             )
 
     def complete_plane(self):
-        fl.save(
-            Path(self.save_parameters.output_dir)
-            / "original/{:04d}.h5".format(self.i_block),
-            {"stack_4D": self.current_data},
-            compression="blosc",
-        )
-        self.i_in_plane = 0
-        self.i_block += 1
+        if not self.reference_event.is_set():
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "original/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data},
+                compression="blosc",
+            )
+            self.i_in_plane = 0
+            self.i_block += 1
+        else:
+            self.reference_queue.put(self.current_data)
 
     def receive_save_parameters(self):
         try:

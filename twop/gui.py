@@ -56,6 +56,7 @@ class ExperimentControl(QWidget):
         self.plane_progress.setFormat("Frame %v of %m")
         self.stack_progress.setFormat("Plane %v of %m")
         self.startstop_button.clicked.connect(self.toggle_start)
+        self.chk_reference = QCheckBox("Reference not acquired")
 
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.experiment_settings_gui)
@@ -64,6 +65,7 @@ class ExperimentControl(QWidget):
         self.layout().addWidget(self.chk_pause)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
+        self.layout().addWidget(self.chk_reference)
 
     def set_saving(self):
         self.startstop_button.setText("Start recording")
@@ -85,6 +87,10 @@ class ExperimentControl(QWidget):
             self.state.pause_after = self.chk_pause.isChecked()
             if self.state.start_experiment():
                 self.set_notsaving()
+        if self.chk_reference.isChecked() and not self.state.reference_event.is_set():
+            self.state.reference_event.set()
+        else:
+            self.state.reference_event.clear()
 
     def set_locationbutton(self):
         pathtext = self.state.experiment_settings.save_dir

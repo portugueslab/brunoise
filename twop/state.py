@@ -21,6 +21,7 @@ from typing import Optional
 from enum import Enum
 from time import sleep
 from sequence_diagram import SequenceDiagram
+from twop.drift_correction import Corrector
 
 
 class ExperimentSettings(ParametrizedQt):
@@ -125,8 +126,9 @@ class ExperimentState(QObject):
         )
         self.save_queue = ArrayQueue(max_mbytes=800)
 
+        self.reference_event = Event()
         self.saver = StackSaver(
-            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue
+            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue, self.reference_event
         )
         self.save_status: Optional[SavingStatus] = None
 
@@ -143,6 +145,10 @@ class ExperimentState(QObject):
         self.open_setup()
 
         self.paused = False
+
+        self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.state.stop_event,
+                                   self.saver.reference_queue, self.saver.saving_parameter_queue,
+                                   self.scanner.scanning_parameters, self.scanner.data_queue, self.motors)
 
     @property
     def saving(self):
