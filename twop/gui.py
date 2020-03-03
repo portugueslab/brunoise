@@ -51,12 +51,12 @@ class ExperimentControl(QWidget):
         self.startstop_button = QPushButton()
         self.set_saving()
         self.chk_pause = QCheckBox("Pause after experiment")
+        self.chk_reference = QCheckBox("Reference Acquisition")
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
         self.plane_progress.setFormat("Frame %v of %m")
         self.stack_progress.setFormat("Plane %v of %m")
         self.startstop_button.clicked.connect(self.toggle_start)
-        self.chk_reference = QCheckBox("Reference not acquired")
 
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.experiment_settings_gui)
@@ -87,6 +87,7 @@ class ExperimentControl(QWidget):
             self.state.pause_after = self.chk_pause.isChecked()
             if self.state.start_experiment():
                 self.set_notsaving()
+
         if self.chk_reference.isChecked() and not self.state.reference_event.is_set():
             self.state.reference_event.set()
         else:

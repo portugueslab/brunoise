@@ -21,7 +21,7 @@ from typing import Optional
 from enum import Enum
 from time import sleep
 from sequence_diagram import SequenceDiagram
-from twop.drift_correction import Corrector
+from twop.drift_correction import Corrector, ReferenceSettings
 
 
 class ExperimentSettings(ParametrizedQt):
@@ -108,11 +108,13 @@ class ExperimentState(QObject):
         self.experiment_start_event = Event()
         self.scanning_settings = ScanningSettings()
         self.experiment_settings = ExperimentSettings()
+        self.reference_settings = ReferenceSettings()
         self.pause_after = False
 
         self.parameter_tree = ParameterTree()
         self.parameter_tree.add(self.scanning_settings)
         self.parameter_tree.add(self.experiment_settings)
+        self.parameter_tree.add(self.reference_settings)
 
         self.end_event = Event()
         self.external_sync = ZMQcomm()
@@ -137,18 +139,20 @@ class ExperimentState(QObject):
         self.motors["y"] = MotorControl("COM6", axes="y")
         self.motors["z"] = MotorControl("COM6", axes="z")
         self.power_controller = LaserPowerControl()
+        self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.state.stop_event,
+                                   self.saver.reference_queue, self.saver.saving_parameter_queue,
+                                   self.scanner.scanning_parameters, self.scanner.data_queue, self.motors,
+                                   self.reference_settings)
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
         self.scanner.start()
         self.reconstructor.start()
         self.saver.start()
+        self.corrector.start()
         self.open_setup()
 
         self.paused = False
 
-        self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.state.stop_event,
-                                   self.saver.reference_queue, self.saver.saving_parameter_queue,
-                                   self.scanner.scanning_parameters, self.scanner.data_queue, self.motors)
 
     @property
     def saving(self):
@@ -158,17 +162,24 @@ class ExperimentState(QObject):
         self.send_scan_params()
 
     def start_experiment(self, first_plane=True):
-        duration = self.external_sync.send(self.parameter_tree.serialize())
-        if duration is None:
-            self.restart_scanning()
-            return False
-        self.duration_queue.put(duration)
+        if not self.reference_event.is_set():
+            duration = self.external_sync.send(self.parameter_tree.serialize())
+            if duration is None:
+                self.restart_scanning()
+                return False
+            self.duration_queue.put(duration)
+        else:
+            duration = self.corrector.reference_settings.n_frames * (1 / self.scanning_settings.framerate)
+            self.duration_queue.put(duration)
         params_to_send = convert_params(self.scanning_settings)
         params_to_send.scanning_state = ScanningState.EXPERIMENT_RUNNING
         self.scanner.parameter_queue.put(params_to_send)
         if first_plane:
             self.send_save_params()
             self.saver.saving_signal.set()
+            if self.reference_event.is_set():
+                self.corrector.start_acquisition()
+                sleep(0.2)
         self.experiment_start_event.set()
         return True
 
@@ -197,7 +208,10 @@ class ExperimentState(QObject):
         self.paused = True
 
     def advance_plane(self):
-        self.motors["z"].move_rel(self.experiment_settings.dz / 1000)
+        if not self.reference_event.is_set():
+            self.motors["z"].move_rel(self.experiment_settings.dz / 1000)
+        else:
+            self.motors["z"].move_rel(self.reference_settings.dz / 1000)
         sleep(0.2)
         self.start_experiment(first_plane=False)
 
@@ -236,13 +250,22 @@ class ExperimentState(QObject):
         self.sig_scanning_changed.emit()
 
     def send_save_params(self):
-        self.saver.saving_parameter_queue.put(
-            SavingParameters(
-                output_dir=Path(self.experiment_settings.save_dir),
-                plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
-                n_z=self.experiment_settings.n_planes,
+        if not self.reference_settings.is_set():
+            self.saver.saving_parameter_queue.put(
+                SavingParameters(
+                    output_dir=Path(self.experiment_settings.save_dir),
+                    plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                    n_z=self.experiment_settings.n_planes,
+                )
             )
-        )
+        else:
+            self.saver.saving_parameter_queue.put(
+                SavingParameters(
+                    output_dir=Path(self.experiment_settings.save_dir),
+                    plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                    n_z=self.corrector.reference_settings.n_planes,
+                )
+            )
 
     def get_save_status(self) -> Optional[SavingStatus]:
         try:
