@@ -24,6 +24,7 @@ from sequence_diagram import SequenceDiagram
 from twop.drift_correction import Corrector, ReferenceSettings
 
 
+
 class ExperimentSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
@@ -129,8 +130,10 @@ class ExperimentState(QObject):
         self.save_queue = ArrayQueue(max_mbytes=800)
 
         self.reference_event = Event()
+        self.reference_queue = ArrayQueue(max_mbytes=800)
         self.saver = StackSaver(
-            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue, self.reference_event
+            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue, self.reference_event,
+            self.reference_queue
         )
         self.save_status: Optional[SavingStatus] = None
 
@@ -178,7 +181,7 @@ class ExperimentState(QObject):
             self.send_save_params()
             self.saver.saving_signal.set()
             if self.reference_event.is_set():
-                self.corrector.start_acquisition()
+                self.corrector.start_ref_acquisition()
                 sleep(0.2)
         self.experiment_start_event.set()
         return True

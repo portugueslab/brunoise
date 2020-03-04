@@ -2,14 +2,15 @@ from multiprocessing import Process
 import numpy as np
 from lightparam.param_qt import ParametrizedQt
 from lightparam import Param
-
+from skimage.feature import register_translation
+from queue import Empty
 
 class ReferenceSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
         self.name = "recording"
         self.n_frames = Param(10, (1, 500))
-        self.n_planes = Param(5, (1, 500))
+        self.n_planes = Param(11, (1, 500))
         self.dz = Param(1.0, (0.1, 20.0), unit="um")
         self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
 
@@ -40,6 +41,7 @@ class Corrector(Process):
         self.actual_parameters = None
         self.reference = None
         self.eval_period = 5  # in seconds
+        self.calibration_vector = [0, 0, self.reference_settings.dz / 1000]
 
     def run(self):
         while True:
@@ -57,27 +59,47 @@ class Corrector(Process):
         n_z = param_ref.target_params.n_z
         i_t = param_ref.i_t
         i_z = param_ref.i_z
-        self.reference = np.empty((param_scanning.n_frames, param_ref.n_z, param_scanning.n_y,
-                                   param_scanning.n_x + param_scanning.n_turn))
+        ref = np.empty((param_scanning.n_frames, param_ref.n_z, param_scanning.n_y,
+                        param_scanning.n_x + param_scanning.n_turn))
         while self.stop_event.is_set():
             if not n_t == i_t and not n_z == i_z:
                 frame = self.reference_queue.get(timeout=0.001)
                 print(frame)
-                self.reference[i_t, i_z, :, :] = frame
+                ref[i_t, i_z, :, :] = frame
             else:
-                self.reference_processing()
-                break
+                self.reference = self.reference_processing(ref)
+                self.end_ref_acquisition()
 
-    def reference_processing(self):
+    def frame_processing(self):
         pass
 
-    def compute_registration(self):
-        pass
+    def compute_registration(self, test_image):
+        vectors = []
+        errors = []
+        planes = np.size(self.reference, 0)
+        for i in range(planes):
+            ref_im = np.squeeze(self.reference[i, :, :])
+            output = register_translation(ref_im, test_image)
+            vectors.append(output[0])
+            errors.append(output[1])
+        ind = errors.index(min(errors))
+        z_disp = ind - ((self.reference_settings.n_planes - 1) / 2)
+        vector = vectors[ind]
+        np.append(vector, z_disp)
+        vector = self.real_units(vector)
+        return vector
 
     def exp_loop(self):
-        pass
+        while not self.stop_event.is_set():
+            while True:
+                try:
+                    frame = self.data_queue.get(timeout=0.001)
+                except Empty:
+                    break
+        vector = self.compute_registration(frame)
+        self.apply_correction(vector)
 
-    def start_acquisition(self):
+    def start_ref_acquisition(self):
         self.x_pos = self.motors["x"].get_position()
         self.y_pos = self.motors["y"].get_position()
         self.z_pos = self.motors["z"].get_position()
@@ -87,5 +109,19 @@ class Corrector(Process):
         distance = (self.reference_settings.dz / 1000) * up_planes
         self.motors["z"].more_rel = distance
 
-    def end_acquisition(self):
-        self.mototors["z"].move_abs(self.z_pos)
+    def end_ref_acquisition(self):
+        self.motors["z"].move_abs(self.z_pos)
+
+    def real_units(self,raw_vector):
+        vector = np.multiply(raw_vector,self.calibration_vector)
+        return vector
+
+    def apply_correction(self, vector):
+        self.motors["x"].move_rel(vector[1])
+        self.motors["y"].move_rel(vector[0])
+        self.motors["x"].move_rel(vector[2])
+
+    @staticmethod
+    def reference_processing(input_ref):
+        output_ref = np.mean(input_ref, axis=0)
+        return output_ref

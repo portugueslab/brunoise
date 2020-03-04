@@ -25,13 +25,14 @@ class SavingStatus:
 
 
 class StackSaver(Process):
-    def __init__(self, stop_signal, data_queue, n_frames_queue, reference_event):
+    def __init__(self, stop_signal, data_queue, n_frames_queue, reference_event, reference_queue):
         super().__init__()
         self.stop_signal = stop_signal
         self.data_queue = data_queue
         self.saving_signal = Event()
         self.n_frames_queue = n_frames_queue
         self.reference_event = reference_event
+        self.reference_queue = reference_queue
         self.saving = False
         self.saving_parameter_queue = Queue()
         self.save_parameters: Optional[SavingParameters] = None
