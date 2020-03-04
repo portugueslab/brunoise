@@ -133,7 +133,7 @@ class StackSaver(Process):
                     ),
                     "shape_block": (
                         self.save_parameters.n_t,
-                        self.i_block,
+                        1,
                         *self.current_data.shape[2:],
                     ),
                     "crop_start": [0, 0, 0, 0],
