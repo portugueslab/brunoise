@@ -144,7 +144,7 @@ class ExperimentState(QObject):
         self.power_controller = LaserPowerControl()
         self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.state.stop_event,
                                    self.saver.reference_queue, self.saver.saving_parameter_queue,
-                                   self.scanner.scanning_parameters, self.scanner.data_queue, self.motors,
+                                   self.scanner.scanning_parameters, self.scanner.data_queue_copy, self.motors,
                                    self.reference_settings)
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)

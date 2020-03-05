@@ -9,10 +9,12 @@ class ReferenceSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
         self.name = "recording"
-        self.n_frames = Param(10, (1, 500))
+        self.n_frames_ref = Param(10, (1, 500))
         self.n_planes = Param(11, (1, 500))
         self.dz = Param(1.0, (0.1, 20.0), unit="um")
-        self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
+        self.xy_th = Param(5.0, (0.1, 20.0), unit="um")
+        self.z_th = Param(self.dz.value, (self.dz.value, self.dz.value * self.n_planes.value), unit="um")
+        self.n_frames_exp = Param(5, (1, 500))
 
 
 class Corrector(Process):
@@ -70,8 +72,10 @@ class Corrector(Process):
                 self.reference = self.reference_processing(ref)
                 self.end_ref_acquisition()
 
-    def frame_processing(self):
-        pass
+    def frame_processing(self, frame_container):
+        frame_container_array  = np.array(frame_container)
+        frame = np.mean(frame_container_array, 0)
+        return frame
 
     def compute_registration(self, test_image):
         vectors = []
@@ -91,13 +95,18 @@ class Corrector(Process):
 
     def exp_loop(self):
         while not self.stop_event.is_set():
-            while True:
+            number_of_frames = 0
+            frame_container = []
+            while number_of_frames == self.reference_settings.n_frames_exp:
                 try:
                     frame = self.data_queue.get(timeout=0.001)
+                    frame_container.append(frame)
+                    number_of_frames += 1
                 except Empty:
-                    break
-        vector = self.compute_registration(frame)
-        self.apply_correction(vector)
+                    frame_container = frame_container[-self.reference_settings.n_frames_exp:]
+                frame = self.frame_processing(frame_container)
+                vector = self.compute_registration(frame)
+                self.apply_correction(vector)
 
     def start_ref_acquisition(self):
         self.x_pos = self.motors["x"].get_position()

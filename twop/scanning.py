@@ -56,6 +56,7 @@ class Scanner(Process):
     def __init__(self, experiment_start_event, duration_queue, max_queuesize=200):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
+        self.data_queue_copy = ArrayQueue(max_mbytes=max_queuesize)
         self.parameter_queue = Queue()
         self.stop_event = Event()
         self.experiment_start_event = experiment_start_event
@@ -181,7 +182,9 @@ class Scanner(Process):
                 print(e)
                 break
 
-            self.data_queue.put(self.read_buffer[0, :])
+            data = self.read_buffer[0, :]
+            self.data_queue.put(data)
+            self.data_queue_copy.put(data)
 
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
