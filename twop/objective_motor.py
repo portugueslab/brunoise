@@ -30,18 +30,18 @@ class MotorControl:
         self.connection = True
 
     def update(self):
-            actual_pos = self.get_position()
-            self.output_positions_queue.put(actual_pos)
-            try:
-                mov = self.input_commands_queue.get(timeout=0.001)
-            except Empty:
-                mov = None
+        actual_pos = self.get_position()
+        self.output_positions_queue.put(actual_pos)
+        try:
+            mov = self.get_last_entry(self.input_commands_queue)
+        except Empty:
+            mov = None
 
-            if mov is not None:
-                if mov[1] is False:
-                    self.move_rel(mov[0])
-                elif mov[1] is True:
-                    self.move_abs(mov[0])
+        if mov is not None:
+            if mov[1] is False:
+                self.move_rel(mov[0])
+            elif mov[1] is True:
+                self.move_abs(mov[0])
 
     def get_position(self):
         input_m = self.axes + "TP"
@@ -131,6 +131,15 @@ class MotorControl:
         elif axes == "z":
             axes = 3
         return axes
+
+    @staticmethod
+    def get_last_entry(queue):
+        while True:
+            try:
+                out = queue.get(timeout=0.001)
+            except Empty:
+                break
+        return out
 
 
 if __name__ == "__main__":
