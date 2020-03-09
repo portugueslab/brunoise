@@ -15,13 +15,14 @@ from queue import Empty
 
 
 class MotionControlXYZ(QWidget):
-    def __init__(self, input_queues):
+    def __init__(self, input_queues, output_queues):
         super().__init__()
         self.setLayout(QGridLayout())
 
         for key, value in input_queues.items():
             input_queue = input_queues[key]
-            wid = MotorSlider(name=key, input_queue=input_queue, output_queue=value.output_positions_queue)
+            output_queue = output_queues[key]
+            wid = MotorSlider(name=key, input_queue=input_queue, output_queue=output_queue)
             self.layout().addWidget(wid)
 
 

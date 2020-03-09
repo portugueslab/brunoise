@@ -138,11 +138,12 @@ class ExperimentState(QObject):
         self.save_status: Optional[SavingStatus] = None
 
         self.input_queues = {"x": Queue(), "y": Queue(), "z": Queue()}
+        self.x_queue = Queue()
         self.close_setup_event = Event()
         self.motors = dict()
         self.motors["x"] = MotorControl("COM6", self.input_queues["x"], self.close_setup_event, axes="x")
         self.motors["y"] = MotorControl("COM6", self.input_queues["y"], self.close_setup_event, axes="y")
-        self.motors["z"] = MotorControl("COM6", self.input_queues["z"],self.close_setup_event, axes="z")
+        self.motors["z"] = MotorControl("COM6", self.input_queues["z"], self.close_setup_event, axes="z")
         self.output_queues = {"x": self.motors["x"].output_positions_queue,
                               "y": self.motors["y"].output_positions_queue,
                               "z": self.motors["z"].output_positions_queue}
@@ -163,7 +164,6 @@ class ExperimentState(QObject):
         self.saver.start()
         self.corrector.start()
         self.open_setup()
-
         self.paused = False
 
 

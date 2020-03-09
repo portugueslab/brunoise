@@ -21,16 +21,15 @@ class MotorControl(Process):
         self.port = port
         self.input_commands_queue = input_commands_queue
         self.output_positions_queue = Queue()
-        self.move_abs_gate = Event()
         self.close_setup_event = close_setup_event
         axes = self.find_axis(axes)
         self.axes = str(axes)
         self.home_pos = None
         rm = pyvisa.ResourceManager()
-        self.motor = rm.open_resource(
-            port, baud_rate=baudrate, parity=parity, encoding=encoding, timeout=10
-        )
-        self.start_session()
+        # self.motor = rm.open_resource(
+        #             port, baud_rate=baudrate, parity=parity, encoding=encoding, timeout=10
+        #         )
+        # self.start_session()
         self.connection = True
 
     def run(self):
@@ -114,7 +113,6 @@ class MotorControl(Process):
         # set jog low speed to 0.01
         command = self.axes + "TW" + str(0.01)
         self.execute_motor(command)
-
         # define home position
         self.define_home()
 
