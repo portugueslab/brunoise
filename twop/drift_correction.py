@@ -52,7 +52,7 @@ def convert_reference_params(st: ReferenceSettings) -> ReferenceParameters:
 class Corrector(Process):
     def __init__(self, reference_event, experiment_start_event, stop_event, correction_event,
                  reference_queue, reference_acq_param_queue, scanning_parameters_queue, data_queue,
-                 motors):
+                 input_commands_queues, output_positions_queues):
         super().__init__()
         self.reference_event = reference_event
         self.experiment_start_event = experiment_start_event
@@ -65,8 +65,9 @@ class Corrector(Process):
         self.reference_param_queue = Queue()
         self.scanning_parameters_queue = scanning_parameters_queue
         self.data_queue = data_queue
+        self.input_commands_queues = input_commands_queues
+        self.output_positions_queues = output_positions_queues
 
-        self.motors = motors
         self.x_pos = None
         self.y_pos = None
         self.z_pos = None
@@ -145,26 +146,26 @@ class Corrector(Process):
                 self.apply_correction(vector)
 
     def start_ref_acquisition(self):
-        self.x_pos = self.motors["x"].get_position()
-        self.y_pos = self.motors["y"].get_position()
-        self.z_pos = self.motors["z"].get_position()
+        self.x_pos = self.get_last_entry(self.output_positions_queues["x"])
+        self.y_pos = self.get_last_entry(self.output_positions_queues["y"])
+        self.z_pos = self.get_last_entry(self.output_positions_queues["z"])
         if self.reference_params.n_planes // 2:
             self.reference_params.n_planes = self.reference_params.n_planes + 1
         up_planes = (self.reference_params.n_planes - 1) / 2
         distance = (self.reference_params.dz / 1000) * up_planes
-        self.motors["z"].more_rel = distance
+        self.input_commands_queues["z"].put((distance, False))
 
     def end_ref_acquisition(self):
-        self.motors["z"].move_abs(self.z_pos)
+        self.input_commands_queues["z"].put((self.z_pos, True))
 
     def real_units(self, raw_vector):
         vector = np.multiply(raw_vector, self.calibration_vector)
         return vector
 
     def apply_correction(self, vector):
-        self.motors["x"].move_rel(vector[1])
-        self.motors["y"].move_rel(vector[0])
-        self.motors["x"].move_rel(vector[2])
+        self.input_commands_queues["x"].put((vector[1], False))
+        self.input_commands_queues["y"].put((vector[0], False))
+        self.input_commands_queues["z"].put((vector[2], False))
 
     @staticmethod
     def reference_processing(input_ref):

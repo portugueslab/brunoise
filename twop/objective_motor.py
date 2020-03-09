@@ -1,19 +1,28 @@
 import pyvisa
+from multiprocessing import Process, Queue, Event
+from queue import Empty
 
 
-class MotorControl:
+class MotorControl(Process):
     def __init__(
-        self,
-        port,
-        baudrate=921600,
-        parity=pyvisa.constants.Parity.none,
-        encoding="ascii",
-        axes=None,
+            self,
+            port,
+            input_commands_queue,
+            close_setup_event,
+            baudrate=921600,
+            parity=pyvisa.constants.Parity.none,
+            encoding="ascii",
+            axes=None,
     ):
+        super().__init__()
         self.baudrate = baudrate
         self.parity = parity
         self.encoding = encoding
         self.port = port
+        self.input_commands_queue = input_commands_queue
+        self.output_positions_queue = Queue()
+        self.move_abs_gate = Event()
+        self.close_setup_event = close_setup_event
         axes = self.find_axis(axes)
         self.axes = str(axes)
         self.home_pos = None
@@ -23,6 +32,22 @@ class MotorControl:
         )
         self.start_session()
         self.connection = True
+
+    def run(self):
+        while not self.close_setup_event:
+            actual_pos = self.get_position()
+            self.output_positions_queue.put(actual_pos)
+            try:
+                mov = self.input_commands_queue.get(timeout=0.001)
+            except Empty:
+                mov = None
+
+            if mov is not None:
+                if mov[1] is False:
+                    self.move_rel(mov[0])
+                elif mov[1] is True:
+                    self.move_abs(mov[0])
+        self.close()
 
     def get_position(self):
         input_m = self.axes + "TP"
