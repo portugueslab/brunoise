@@ -99,7 +99,7 @@ class Corrector(Process):
         ref = np.empty((param_scanning.n_frames, param_acq_ref.n_z, param_scanning.n_y,
                         param_scanning.n_x + param_scanning.n_turn))
         while self.stop_event.is_set():
-            param_acq_ref = self.get_last_entry(self.reference_acq_param_queue)  # or the normal call?
+            param_acq_ref = self.get_last_entry(self.reference_acq_param_queue)  # or normal call?
             if not n_t == param_acq_ref.i_t and not n_z == param_acq_ref.i_z:
                 frame = self.reference_queue.get(timeout=0.001)
                 print(frame)
@@ -107,11 +107,6 @@ class Corrector(Process):
             else:
                 self.reference = self.reference_processing(ref)
                 self.end_ref_acquisition()
-
-    def frame_processing(self, frame_container):
-        frame_container_array = np.array(frame_container)
-        frame = np.mean(frame_container_array, 0)
-        return frame
 
     def compute_registration(self, test_image):
         vectors = []
@@ -171,6 +166,12 @@ class Corrector(Process):
     def reference_processing(input_ref):
         output_ref = np.mean(input_ref, axis=0)
         return output_ref
+
+    @staticmethod
+    def frame_processing(frame_container):
+        frame_container_array = np.array(frame_container)
+        frame = np.mean(frame_container_array, 0)
+        return frame
 
     @staticmethod
     def get_last_entry(queue):

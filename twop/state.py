@@ -235,7 +235,8 @@ class ExperimentState(QObject):
         end all parallel processes, close all communication channels
 
         """
-        self.close_setup_event.set()
+        for motor in self.motors.values():
+            motor.end_session()
         self.power_controller.terminate_connection()
         self.scanner.stop_event.set()
         self.end_event.set()

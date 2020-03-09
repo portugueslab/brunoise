@@ -247,6 +247,9 @@ class TwopViewer(QMainWindow):
     def update(self):
         self.image_display.update()
         self.experiment_widget.update()
+        self.state.motors["x"].update()
+        self.state.motors["y"].update()
+        self.state.motors["z"].update()
 
     def closeEvent(self, event) -> None:
         self.state.close_setup()
