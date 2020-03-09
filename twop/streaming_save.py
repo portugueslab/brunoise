@@ -158,7 +158,8 @@ class StackSaver(Process):
             self.reference_queue.put(self.current_data)
 
     def receive_save_parameters(self):
-        try:
-            self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
-        except Empty:
-            pass
+        if not self.reference_event.is_set():
+            try:
+                self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
+            except Empty:
+                pass

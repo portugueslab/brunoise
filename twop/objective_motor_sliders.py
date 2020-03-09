@@ -75,7 +75,7 @@ class MotorSlider(QWidget):
         self.input_queue = input_queue
         self.output_queue = output_queue
 
-        value = self.output_queue.get(timeout=0.1)
+        value = self.output_queue.get(timeout=0.001)
         min_range = value + move_limit_low
         max_range = value + move_limit_high
 

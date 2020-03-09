@@ -5,6 +5,7 @@ from lightparam import Param
 from skimage.feature import register_translation
 from queue import Empty
 from dataclasses import dataclass
+from time import sleep
 
 
 class ReferenceSettings(ParametrizedQt):
@@ -51,17 +52,17 @@ def convert_reference_params(st: ReferenceSettings) -> ReferenceParameters:
 
 class Corrector(Process):
     def __init__(self, reference_event, experiment_start_event, stop_event, correction_event,
-                 reference_queue, reference_acq_param_queue, scanning_parameters_queue, data_queue,
+                 reference_queue, reference_acq_param_queue, save_parameters, scanning_parameters_queue, data_queue,
                  input_commands_queues, output_positions_queues):
         super().__init__()
         self.reference_event = reference_event
         self.experiment_start_event = experiment_start_event
         self.stop_event = stop_event
-        self.reference_params = None
         self.correction_event = correction_event
 
         self.reference_queue = reference_queue
         self.reference_acq_param_queue = reference_acq_param_queue
+        self.save_parameters = save_parameters
         self.reference_param_queue = Queue()
         self.scanning_parameters_queue = scanning_parameters_queue
         self.data_queue = data_queue
@@ -79,8 +80,10 @@ class Corrector(Process):
         self.reference = None
         self.eval_period = 5  # in seconds
         self.calibration_vector = None
+        self.reference_params = None
 
     def run(self):
+        self.reference_params = self.reference_param_queue.get(timeout=0.001)
         while True:
             if self.reference_event.is_set() and self.experiment_start_event.is_set():
                 self.reference_loop()
@@ -92,11 +95,13 @@ class Corrector(Process):
                 self.correction_event.clear()
 
     def reference_loop(self):
-        param_acq_ref = self.get_last_entry(self.reference_acq_param_queue)
+        # param_acq_ref = self.get_last_entry(self.reference_acq_param_queue)
         param_scanning = self.get_last_entry(self.scanning_parameters_queue)
-        n_t = param_acq_ref.target_params.n_t
-        n_z = param_acq_ref.target_params.n_z
-        ref = np.empty((param_scanning.n_frames, param_acq_ref.n_z, param_scanning.n_y,
+        # n_t = param_acq_ref.target_params.n_t
+        # n_z = param_acq_ref.target_params.n_z
+        n_t = self.save_parameters.n_t
+        n_z = self.save_parameters.n_z
+        ref = np.empty((param_scanning.n_frames, self.save_parameters.n_z, param_scanning.n_y,
                         param_scanning.n_x + param_scanning.n_turn))
         while self.stop_event.is_set():
             param_acq_ref = self.get_last_entry(self.reference_acq_param_queue)  # or normal call?
@@ -125,30 +130,33 @@ class Corrector(Process):
         return vector
 
     def exp_loop(self):
-        self.calibration_vector = [0, 0, self.reference_settings.dz.value / 1000]
+        self.calibration_vector = [0, 0, self.reference_params.dz.value / 1000]
         while not self.stop_event.is_set():
             number_of_frames = 0
             frame_container = []
-            while number_of_frames == self.reference_settings.n_frames_exp:
+            while number_of_frames == self.reference_params.n_frames_exp:
                 try:
                     frame = self.data_queue.get(timeout=0.001)
                     frame_container.append(frame)
                     number_of_frames += 1
                 except Empty:
-                    frame_container = frame_container[-self.reference_settings.n_frames_exp:]
+                    frame_container = frame_container[-self.reference_params.n_frames_exp:]
                 frame = self.frame_processing(frame_container)
                 vector = self.compute_registration(frame)
                 self.apply_correction(vector)
 
     def start_ref_acquisition(self):
+        print(self.reference_params.n_planes)
         self.x_pos = self.get_last_entry(self.output_positions_queues["x"])
         self.y_pos = self.get_last_entry(self.output_positions_queues["y"])
         self.z_pos = self.get_last_entry(self.output_positions_queues["z"])
+        print(self.x_pos, self.y_pos, self.z_pos)
         if self.reference_params.n_planes // 2:
             self.reference_params.n_planes = self.reference_params.n_planes + 1
         up_planes = (self.reference_params.n_planes - 1) / 2
         distance = (self.reference_params.dz / 1000) * up_planes
         self.input_commands_queues["z"].put((distance, False))
+        sleep(0.2)
 
     def end_ref_acquisition(self):
         self.input_commands_queues["z"].put((self.z_pos, True))
@@ -175,11 +183,13 @@ class Corrector(Process):
 
     @staticmethod
     def get_last_entry(queue):
-        while True:
+        out = None
+        empty = False
+        while empty is False and out is not None:
             try:
                 out = queue.get(timeout=0.001)
             except Empty:
-                break
+                empty = True
         return out
 
     def update_settings(self):

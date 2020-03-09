@@ -32,11 +32,7 @@ class MotorControl:
     def update(self):
         actual_pos = self.get_position()
         self.output_positions_queue.put(actual_pos)
-        try:
-            mov = self.get_last_entry(self.input_commands_queue)
-        except Empty:
-            mov = None
-
+        mov = self.get_last_entry(self.input_commands_queue)
         if mov is not None:
             if mov[1] is False:
                 self.move_rel(mov[0])
@@ -134,6 +130,7 @@ class MotorControl:
 
     @staticmethod
     def get_last_entry(queue):
+        out = None
         while True:
             try:
                 out = queue.get(timeout=0.001)
