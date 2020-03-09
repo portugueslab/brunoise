@@ -53,7 +53,7 @@ def compute_waveform(sp: ScanningParameters):
 
 
 class Scanner(Process):
-    def __init__(self, experiment_start_event, duration_queue, max_queuesize=200):
+    def __init__(self, experiment_start_event, duration_queue, max_queuesize=200, correction=None):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
         self.data_queue_copy = ArrayQueue(max_mbytes=max_queuesize)
@@ -64,6 +64,8 @@ class Scanner(Process):
         self.new_parameters = copy(self.scanning_parameters)
         self.duration_queue = duration_queue
         self.n_frames_queue = Queue()
+        self.correction_event = correction
+        self.correction_status = False
 
     def run(self):
         self.compute_scan_parameters()
@@ -184,7 +186,8 @@ class Scanner(Process):
 
             data = self.read_buffer[0, :]
             self.data_queue.put(data)
-            self.data_queue_copy.put(data)
+            if self.correction_status is True:
+                self.data_queue_copy.put(data)
 
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
@@ -233,6 +236,10 @@ class Scanner(Process):
             ):
                 toggle_shutter = True
 
+            if self.correction_event.is_set():
+                self.correction_status = True
+            else:
+                self.correction_status = False
             self.scanning_parameters = self.new_parameters
             self.compute_scan_parameters()
             with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:

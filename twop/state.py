@@ -21,8 +21,7 @@ from typing import Optional
 from enum import Enum
 from time import sleep
 from sequence_diagram import SequenceDiagram
-from twop.drift_correction import Corrector, ReferenceSettings
-
+from twop.drift_correction import *
 
 
 class ExperimentSettings(ParametrizedQt):
@@ -120,8 +119,9 @@ class ExperimentState(QObject):
         self.end_event = Event()
         self.external_sync = ZMQcomm()
         self.duration_queue = Queue()
+        self.correction_event = Event()
         self.scanner = Scanner(
-            self.experiment_start_event, duration_queue=self.duration_queue
+            self.experiment_start_event, duration_queue=self.duration_queue, correction=self.correction_event
         )
         self.scanning_parameters = None
         self.reconstructor = ImageReconstructor(
@@ -142,12 +142,13 @@ class ExperimentState(QObject):
         self.motors["y"] = MotorControl("COM6", axes="y")
         self.motors["z"] = MotorControl("COM6", axes="z")
         self.power_controller = LaserPowerControl()
-        self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.state.stop_event,
-                                   self.saver.reference_queue, self.saver.saving_parameter_queue,
-                                   self.scanner.scanning_parameters, self.scanner.data_queue_copy, self.motors,
-                                   self.reference_settings)
+        self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
+                                   self.correction_event, self.saver.reference_queue, self.saver.saving_parameter_queue,
+                                   self.scanner.scanning_parameters, self.scanner.data_queue_copy, self.motors
+                                   )
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
+        self.reference_settings.sig_param_changed.connect(self.send_reference_params)
         self.scanner.start()
         self.reconstructor.start()
         self.saver.start()
@@ -163,8 +164,10 @@ class ExperimentState(QObject):
 
     def open_setup(self):
         self.send_scan_params()
+        self.send_reference_params()
 
     def start_experiment(self, first_plane=True):
+        print(self.reference_event.is_set())
         if not self.reference_event.is_set():
             duration = self.external_sync.send(self.parameter_tree.serialize())
             if duration is None:
@@ -172,7 +175,8 @@ class ExperimentState(QObject):
                 return False
             self.duration_queue.put(duration)
         else:
-            duration = self.corrector.reference_settings.n_frames * (1 / self.scanning_settings.framerate)
+            print('reference duration')
+            duration = self.corrector.reference_params.n_frames_ref * (1 / self.scanning_settings.framerate)
             self.duration_queue.put(duration)
         params_to_send = convert_params(self.scanning_settings)
         params_to_send.scanning_state = ScanningState.EXPERIMENT_RUNNING
@@ -253,7 +257,7 @@ class ExperimentState(QObject):
         self.sig_scanning_changed.emit()
 
     def send_save_params(self):
-        if not self.reference_settings.is_set():
+        if not self.reference_event.is_set():
             self.saver.saving_parameter_queue.put(
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
@@ -266,9 +270,14 @@ class ExperimentState(QObject):
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
                     plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
-                    n_z=self.corrector.reference_settings.n_planes,
+                    n_z=self.corrector.reference_params.n_planes,
                 )
             )
+
+    def send_reference_params(self):
+        param_to_send = convert_reference_params(self.reference_settings)
+        self.corrector.reference_param_queue.put(param_to_send)
+        self.corrector.update_settings()
 
     def get_save_status(self) -> Optional[SavingStatus]:
         try:
