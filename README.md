@@ -98,6 +98,12 @@ to the image
 - [X] ZMQ synchronisation for Stytra (consult with Luigi, Ema)
 bits about networking and zeromq, look at lightsheet software (Ema)
 
+- [ ] Calculate the (maximum) size of the dataset and check if there is enough space on the disk
+
+- [ ] Add a button that opens the latest acquired dataset in the viewer to check it 
+
+- [ ] Calculate the hour at which the whole scanning ends
+
 - [ ] Diagnostics of scan patterns: each scan pattern causes image deformations depending on other paramteres. 
     * [ ] Provide a diagnostic view of the galvo position (also fix the physical cabling so it is not precarious) so that optimal parameters can be adjusted from the impulse response.
     * [ ] Use the step response function (linearity can be probably assumed) to automatically calculate the optimal parameters for the scanning pattern. 
