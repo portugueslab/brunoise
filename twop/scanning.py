@@ -35,7 +35,7 @@ class ScanningParameters:
     mystery_offset: int = -400
     sample_rate_out: float = 500000.0
     scanning_state: ScanningState = ScanningState.PREVIEW
-    reset_shutter: bool = True
+    reset_shutter: bool = False
     n_frames: int = 100
 
 
@@ -115,7 +115,7 @@ class Scanner(Process):
         shutter_task.do_channels.add_do_chan(
             "Dev1/port0/line1", line_grouping=LineGrouping.CHAN_PER_LINE
         )
-        reset_shutter_task.add_do_chan(
+        reset_shutter_task.do_channels.add_do_chan(
             "Dev1/port0/line2", line_grouping=LineGrouping.CHAN_PER_LINE
         )
         # Set the timing of both to the onboard clock so that they are synchronised
@@ -221,7 +221,7 @@ class Scanner(Process):
         shutter_task.write(False, auto_start=True)
         sleep(0.05)
 
-    def reset_shutter(self, reset_shutter_task):
+    def do_reset_shutter(self, reset_shutter_task):
         reset_shutter_task.write(True, auto_start=True)
         sleep(0.05)
 
@@ -244,10 +244,10 @@ class Scanner(Process):
                     nidaqmx.Task() as shutter_task,\
                     nidaqmx.Task() as reset_shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task, reset_shutter_task)
-                if self.scanning_parameters.reset_shutter:
-                    self.reset_shutter()
                 if toggle_shutter:
                     self.toggle_shutter(shutter_task)
+                if self.scanning_parameters.reset_shutter:
+                    self.do_reset_shutter(reset_shutter_task)
                 if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
                     self.pause_loop()
                 else:
