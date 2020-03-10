@@ -145,16 +145,18 @@ class ExperimentState(QObject):
         self.motors["z"] = MotorControl("COM6", self.input_queues["z"], axes="z")
         self.output_queues = {"x": self.motors["x"].output_positions_queue,
                               "y": self.motors["y"].output_positions_queue,
-                              "z": self.motors["z"].output_positions_queue}
+                              "z": self.motors["z"].output_positions_queue
+                              }
         self.power_controller = LaserPowerControl()
         self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
-                                   self.correction_event, self.saver.reference_queue, self.saver.saved_status_queue,
-                                   self.saver.save_parameters, self.scanner.scanning_parameters, self.scanner.data_queue_copy,
+                                   self.correction_event, self.saver.reference_queue, self.scanner.scanning_parameters,
+                                   self.scanner.corrector_queue, self.scanner.data_queue_copy,
                                    self.input_queues, self.output_queues
                                    )
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
         self.reference_settings.sig_param_changed.connect(self.send_reference_params)
+        self.experiment_settings.sig_param_changed.connect(self.send_reference_params)
         self.scanner.start()
         self.reconstructor.start()
         self.saver.start()
@@ -174,7 +176,6 @@ class ExperimentState(QObject):
         self.send_reference_params()
 
     def start_experiment(self, first_plane=True):
-        print(self.reference_event.is_set())
         if not self.reference_event.is_set():
             duration = self.external_sync.send(self.parameter_tree.serialize())
             if duration is None:
@@ -273,15 +274,16 @@ class ExperimentState(QObject):
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
                     plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
-                    n_z=self.reference_params.n_planes,
+                    n_z=(self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes,
                 )
             )
 
     def send_reference_params(self):
         param_to_send = convert_reference_params(self.reference_settings)
+        n_planes = (self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes
+        param_to_send.n_planes = n_planes
         self.reference_params = param_to_send
         self.corrector.reference_param_queue.put(param_to_send)
-        self.corrector.update_settings()
 
     def get_save_status(self) -> Optional[SavingStatus]:
         try:

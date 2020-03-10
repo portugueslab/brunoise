@@ -66,6 +66,7 @@ class Scanner(Process):
         self.n_frames_queue = Queue()
         self.correction_event = correction
         self.correction_status = False
+        self.corrector_queue = Queue()
 
     def run(self):
         self.compute_scan_parameters()
@@ -192,7 +193,9 @@ class Scanner(Process):
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
             try:
-                self.new_parameters = self.parameter_queue.get(timeout=0.0001)
+                new_parameters = self.parameter_queue.get(timeout=0.0001)
+                self.new_parameters = new_parameters
+                self.corrector_queue.put(new_parameters)
                 if self.new_parameters != self.scanning_parameters and (
                     self.scanning_parameters.scanning_state
                     != ScanningState.EXPERIMENT_RUNNING

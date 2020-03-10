@@ -51,7 +51,7 @@ class ExperimentControl(QWidget):
         self.startstop_button = QPushButton()
         self.set_saving()
         self.chk_pause = QCheckBox("Pause after experiment")
-        self.chk_reference = QCheckBox("Reference Acquisition")
+        self.chk_drift_corr = QCheckBox("Drift Correction")
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
         self.plane_progress.setFormat("Frame %v of %m")
@@ -63,7 +63,7 @@ class ExperimentControl(QWidget):
         self.layout().addWidget(self.save_location_button)
         self.layout().addWidget(self.startstop_button)
         self.layout().addWidget(self.chk_pause)
-        self.layout().addWidget(self.chk_reference)
+        self.layout().addWidget(self.chk_drift_corr)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
 
@@ -80,7 +80,7 @@ class ExperimentControl(QWidget):
         )
 
     def toggle_start(self):
-        if self.chk_reference.isChecked() is True and self.state.reference_event.is_set() is False:
+        if self.chk_drift_corr.isChecked() is True:
             self.state.reference_event.set()
         else:
             self.state.reference_event.clear()
@@ -201,7 +201,6 @@ class ReferenceWidget(QWidget):
         self.state = state
         super().__init__()
         self.reference_layout = QVBoxLayout()
-
         self.reference_settings_gui = ParameterGui(self.state.reference_settings)
         self.reference_layout.addWidget(self.reference_settings_gui)
         self.setLayout(self.reference_layout)

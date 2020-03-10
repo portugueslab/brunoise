@@ -152,13 +152,12 @@ class StackSaver(Process):
                 {"stack_4D": self.current_data},
                 compression="blosc",
             )
-            self.i_in_plane = 0
-            self.i_block += 1
         else:
-            self.reference_queue.put(self.current_data)
+            self.reference_queue.put((self.current_data, self.i_block))
+        self.i_in_plane = 0
+        self.i_block += 1
 
     def receive_save_parameters(self):
-        if not self.reference_event.is_set():
             try:
                 self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
             except Empty:
