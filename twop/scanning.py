@@ -104,7 +104,7 @@ class Scanner(Process):
         self.read_buffer = np.zeros((2, self.n_samples_in))
         self.mystery_offset = self.scanning_parameters.mystery_offset
 
-    def setup_tasks(self, read_task, write_task, shutter_task):
+    def setup_tasks(self, read_task, write_task, shutter_task, reset_shutter_task):
         # Configure the channels
         read_task.ai_channels.add_ai_voltage_chan(
             "Dev1/ai0:1", min_val=-1, max_val=1
@@ -114,6 +114,9 @@ class Scanner(Process):
         )
         shutter_task.do_channels.add_do_chan(
             "Dev1/port0/line1", line_grouping=LineGrouping.CHAN_PER_LINE
+        )
+        reset_shutter_task.add_do_chan(
+            "Dev1/port0/line2", line_grouping=LineGrouping.CHAN_PER_LINE
         )
         # Set the timing of both to the onboard clock so that they are synchronised
         read_task.timing.cfg_samp_clk_timing(
@@ -218,6 +221,10 @@ class Scanner(Process):
         shutter_task.write(False, auto_start=True)
         sleep(0.05)
 
+    def reset_shutter(self, reset_shutter_task):
+        reset_shutter_task.write(True, auto_start=True)
+        sleep(0.05)
+
     def run_scanning(self):
         while not self.stop_event.is_set():
             toggle_shutter = False
@@ -232,9 +239,14 @@ class Scanner(Process):
 
             self.scanning_parameters = self.new_parameters
             self.compute_scan_parameters()
-            with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:
-                self.setup_tasks(read_task, write_task, shutter_task)
-                if self.scanning_parameters.reset_shutter or toggle_shutter:
+            with nidaqmx.Task() as write_task,\
+                    nidaqmx.Task() as read_task,\
+                    nidaqmx.Task() as shutter_task,\
+                    nidaqmx.Task() as reset_shutter_task:
+                self.setup_tasks(read_task, write_task, shutter_task, reset_shutter_task)
+                if self.scanning_parameters.reset_shutter:
+                    self.reset_shutter()
+                if toggle_shutter:
                     self.toggle_shutter(shutter_task)
                 if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
                     self.pause_loop()
