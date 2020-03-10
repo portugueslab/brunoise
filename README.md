@@ -12,6 +12,9 @@ Serial port: figure out the port and the communication commands, use PySerial
 - [X] Shutter control
 Diego
 
+- [ ] Fix the shutter UX
+| Figure out deterministically in the software whether the shutter is on or off, and make it always on if scanning, always off if not 
+
 - [X] Laser power control
 Diego
 
