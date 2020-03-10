@@ -70,6 +70,7 @@ class StackSaver(Process):
             and self.saving_signal.is_set()
             and not self.stop_signal.is_set()
         ):
+            self.receive_save_parameters()
             try:
                 self.update_n_t(self.n_frames_queue.get(timeout=0.001))
                 n_total = self.save_parameters.n_t * self.save_parameters.n_z
@@ -128,12 +129,12 @@ class StackSaver(Process):
                     "shape_full": (
                         self.save_parameters.n_t,
                         self.i_block,
-                        *self.current_data.shape[1:],
+                        *self.current_data.shape[2:],
                     ),
                     "shape_block": (
                         self.save_parameters.n_t,
-                        self.i_block,
-                        *self.current_data.shape[1:],
+                        1,
+                        *self.current_data.shape[2:],
                     ),
                     "crop_start": [0, 0, 0, 0],
                     "crop_end": [0, 0, 0, 0],
