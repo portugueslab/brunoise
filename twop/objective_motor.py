@@ -1,25 +1,86 @@
 import pyvisa
-from multiprocessing import Process, Queue, Event
+from multiprocessing import Process
 from queue import Empty
 
 
+class MotorMaster(Process):
+
+    def __init__(
+            self,
+            motors,
+            input_queues,
+            output_queues,
+            close_setup_event,
+    ):
+        super().__init__()
+
+        self.input_queues = input_queues
+        self.output_queues = output_queues
+        self.close_setup_event = close_setup_event
+        self.motors = motors
+        self.positions = dict.fromkeys(motors)
+        self.motors_running = True
+        self.get_positions()
+
+    def run(self) -> None:
+        while not self.close_setup_event:
+            self.get_positions()
+            self.move_motors()
+        self.close_setups()
+
+    def close_setups(self):
+        for axis in self.motors.keys():
+            self.motors[axis].end_session()
+
+    def get_positions(self):
+        for axis in self.motors.keys():
+            actual_pos = self.motors[axis].get_position()
+            if actual_pos is not None:
+                self.positions[axis] = pos
+                self.output_queues[axis].put(actual_pos)
+
+    def move_motors(self):
+        for axis in self.motors.keys():
+            try:
+                package = self.get_last_entry(self.input_queues[axis])
+                mov_value = package[0]
+                mov_type = package[1].name
+                empty_queue = False
+            except Empty:
+                empty_queue = True
+
+            if empty_queue is False:
+                if mov_type is "relative":
+                    self.motors[axis].move_rel(mov_value)
+                elif mov_type is "absolute":
+                    self.motors[axis].move_abs(mov_value)
+
+    @staticmethod
+    def get_last_entry(queue):
+        out = None
+        while True:
+            try:
+                out = queue.get(timeout=0.001)
+            except Empty:
+                break
+        return out
+
+
 class MotorControl:
+
     def __init__(
             self,
             port,
-            input_commands_queue,
             baudrate=921600,
             parity=pyvisa.constants.Parity.none,
             encoding="ascii",
-            axes=None,
+            axis=None,
     ):
         self.baudrate = baudrate
         self.parity = parity
         self.encoding = encoding
         self.port = port
-        self.input_commands_queue = input_commands_queue
-        self.output_positions_queue = Queue()
-        axes = self.find_axis(axes)
+        axes = self.find_axis(axis)
         self.axes = str(axes)
         self.home_pos = None
         rm = pyvisa.ResourceManager()
@@ -28,16 +89,6 @@ class MotorControl:
                 )
         self.start_session()
         self.connection = True
-
-    def update(self):
-        actual_pos = self.get_position()
-        self.output_positions_queue.put(actual_pos)
-        mov = self.get_last_entry(self.input_commands_queue)
-        if mov is not None:
-            if mov[1] is False:
-                self.move_rel(mov[0])
-            elif mov[1] is True:
-                self.move_abs(mov[0])
 
     def get_position(self):
         input_m = self.axes + "TP"
@@ -112,8 +163,8 @@ class MotorControl:
 
     def end_session(self):
         # motor off
-        command = self.axes + "MF"
-        self.execute_motor(command)
+        # command = self.axes + "MF"
+        # self.execute_motor(command)
         # close connection
         self.motor.close()
         self.connection = False
@@ -127,16 +178,6 @@ class MotorControl:
         elif axes == "z":
             axes = 3
         return axes
-
-    @staticmethod
-    def get_last_entry(queue):
-        out = None
-        while True:
-            try:
-                out = queue.get(timeout=0.001)
-            except Empty:
-                break
-        return out
 
 
 if __name__ == "__main__":

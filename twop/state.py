@@ -12,7 +12,7 @@ from pathlib import Path
 from streaming_save import StackSaver, SavingParameters, SavingStatus
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
-from twop.objective_motor import MotorControl
+from twop.objective_motor import MotorMaster, MotorControl
 from twop.external_communication import ZMQcomm
 from twop.power_control import LaserPowerControl
 from math import sqrt
@@ -139,14 +139,12 @@ class ExperimentState(QObject):
         self.save_status: Optional[SavingStatus] = None
 
         self.input_queues = {"x": Queue(), "y": Queue(), "z": Queue()}
-        self.motors = dict()
-        self.motors["x"] = MotorControl("COM6", self.input_queues["x"], axes="x")
-        self.motors["y"] = MotorControl("COM6", self.input_queues["y"], axes="y")
-        self.motors["z"] = MotorControl("COM6", self.input_queues["z"], axes="z")
-        self.output_queues = {"x": self.motors["x"].output_positions_queue,
-                              "y": self.motors["y"].output_positions_queue,
-                              "z": self.motors["z"].output_positions_queue
-                              }
+        self.output_queues = self.input_queues.copy()  # not sure can be done with queue class
+        self.close_setup_event = Event()
+        for axis in ["x", "y", "z"]:
+            self.motors[axis] = MotorControl("COM6", axis=axis)
+        self.master_motor = MotorMaster(self.motors, self.input_queues,
+                                        self.output_queues, self.close_setup_event)
         self.power_controller = LaserPowerControl()
         self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
                                    self.correction_event, self.saver.reference_queue, self.scanner.scanning_parameters,
@@ -159,6 +157,7 @@ class ExperimentState(QObject):
         self.experiment_settings.sig_param_changed.connect(self.send_reference_params)
         self.scanner.start()
         self.reconstructor.start()
+        self.master_motor.start()
         self.saver.start()
         self.corrector.start()
         self.open_setup()
@@ -169,9 +168,6 @@ class ExperimentState(QObject):
         return self.saver.saving_signal.is_set()
 
     def open_setup(self):
-        self.motors["x"].update()
-        self.motors["y"].update()
-        self.motors["z"].update()
         self.send_scan_params()
         self.send_reference_params()
 
@@ -234,6 +230,7 @@ class ExperimentState(QObject):
         for motor in self.motors.values():
             motor.end_session()
         self.power_controller.terminate_connection()
+        self.close_setup_event.set()
         self.scanner.stop_event.set()
         self.end_event.set()
         self.scanner.join()

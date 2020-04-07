@@ -12,6 +12,12 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
 from queue import Empty
+from enum import Enum
+
+
+class MovementType(Enum):
+    absolute = True
+    relative = False
 
 
 class MotionControlXYZ(QWidget):
@@ -19,10 +25,11 @@ class MotionControlXYZ(QWidget):
         super().__init__()
         self.setLayout(QGridLayout())
 
-        for key, value in input_queues.items():
-            input_queue = input_queues[key]
-            output_queue = output_queues[key]
-            wid = MotorSlider(name=key, input_queue=input_queue, output_queue=output_queue)
+        for axis in input_queues.keys():
+            wid = MotorSlider(name=axis,
+                              input_queue=input_queues[axis],
+                              output_queue=output_queues[axis]
+                              )
             self.layout().addWidget(wid)
 
 
@@ -74,7 +81,7 @@ class MotorSlider(QWidget):
         self.spin_val_actual_pos = QDoubleSpinBox()
         self.input_queue = input_queue
         self.output_queue = output_queue
-
+        self.mov_type = MovementType(True)
         value = self.output_queue.get(timeout=0.001)
         min_range = value + move_limit_low
         max_range = value + move_limit_high
@@ -112,18 +119,18 @@ class MotorSlider(QWidget):
                 pos = self.output_queue.get(timeout=0.001)
             except Empty:
                 break
-            if pos is not None:
-                self.spin_val_actual_pos.setValue(pos)
-                self.slider.axes_pos = pos
+            self.spin_val_actual_pos.setValue(pos)
+            self.slider.axes_pos = pos
 
     def update_values(self, val):
         self.spin_val_desired_pos.setValue(val)
-        self.input_queue.put((val, True))
+        self.input_queue.put((val, self.mov_type))
 
     def update_slider(self, new_val):
         self.slider.pos = new_val
         self.slider.update()
-        self.input_queue.put((new_val, False))
+
+        self.input_queue.put((new_val, self.mov_type))
 
     def update_external(self, new_val):
         self.slider.pos = new_val

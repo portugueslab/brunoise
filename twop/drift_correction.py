@@ -7,7 +7,6 @@ from queue import Empty
 from dataclasses import dataclass
 from time import sleep
 
-
 class ReferenceSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
