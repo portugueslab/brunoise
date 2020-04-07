@@ -6,6 +6,8 @@ from skimage.feature import register_translation
 from queue import Empty
 from dataclasses import dataclass
 from time import sleep
+from scipy.ndimage.filters import gaussian_filter
+from scipy.signal import convolve
 
 class ReferenceSettings(ParametrizedQt):
     def __init__(self):
@@ -17,6 +19,9 @@ class ReferenceSettings(ParametrizedQt):
         self.xy_th = Param(5.0, (0.1, 20.0), unit="um")
         self.z_th = Param(self.dz, (self.dz, self.dz * 4), unit="um")
         self.n_frames_exp = Param(5, (1, 500))
+        self.size_k = Param(0, (0, 100))
+        self.sigma_k = Param(2, (1, 10))
+
 
 
 @dataclass
@@ -27,6 +32,8 @@ class ReferenceParameters:
     xy_th: float = 5
     z_th: float = 1
     n_frames_exp: int = 5
+    size_k: int = 0
+    sigma_k: int = 5
 
 
 def convert_reference_params(st: ReferenceSettings) -> ReferenceParameters:
@@ -36,12 +43,16 @@ def convert_reference_params(st: ReferenceSettings) -> ReferenceParameters:
     dz = st.dz
     z_th = st.z_th
     n_frames_exp = st.n_frames_exp
+    sigma = st.sigma
+    size_k = st.size_k
     rp = ReferenceParameters(n_frames_ref=n_frames_ref,
                              extra_planes=extra_planes,
                              dz=dz,
                              xy_th=xy_th,
                              z_th=z_th,
-                             n_frames_exp=n_frames_exp)
+                             n_frames_exp=n_frames_exp,
+                             sigma=sigma,
+                             size_k=size_k)
 
     return rp
 
@@ -72,9 +83,9 @@ class Corrector(Process):
         self.scanning_parameters = scanning_parameters
         # queue for getting the copy of the frames during an experiment
         self.data_queue = data_queue
-        # queue for the communication with the motors (in the main process), this is for move the motors
+        # queue for the communication with the master motor class (in a separate process), this is for move the motors
         self.input_commands_queues = input_commands_queues
-        # queue for the communication with the motors (in the main process), this is for read the last position
+        # queue for the communication with the master motor class (in a separate process), this is for read the last position
         self.output_positions_queues = output_positions_queues
 
         self.x_pos = None
@@ -99,20 +110,8 @@ class Corrector(Process):
                 self.correction_event.clear()
 
     def reference_loop(self):
-        n_x = self.scanning_parameters.n_x
-        n_y = self.scanning_parameters.n_y
-        frames_plane = self.reference_params.n_frames_ref
-        tot_planes = self.reference_params.n_planes
-        ref = np.empty((frames_plane, tot_planes, n_y, n_x))
-        counter = 1
-        while counter == tot_planes:
-            data = self.get_next_entry(self.reference_queue)
-            stack = data[0]
-            i_plane = data[1]
-            plane = self.reference_processing(stack)
-            print(plane)
-            ref[i_plane, :, :] = plane
-            counter += 1
+        stack_4d = self.get_next_entry(self.reference_queue)
+        self.reference = self.reference_processing(stack_4d)
         self.end_ref_acquisition()
 
     def compute_registration(self, test_image):
@@ -171,10 +170,13 @@ class Corrector(Process):
         self.input_commands_queues["y"].put((vector[0], False))
         self.input_commands_queues["z"].put((vector[2], False))
 
-    @staticmethod
-    def reference_processing(input_ref):
-        input_ref = np.squeeze(input_ref)
+    def reference_processing(self, input_ref):
         output_ref = np.mean(input_ref, axis=0)
+        size_kernel = self.reference_params.size_k
+        sigma = self.reference_params.sigma_k
+        if size_kernel != 0:
+            kernel = self.gaussian_kernel((size_kernel,)*3, sigma=sigma)
+            output_ref = convolve(output_ref, kernel, mode='same')
         return output_ref
 
     @staticmethod
@@ -202,6 +204,20 @@ class Corrector(Process):
             except Empty:
                 break
         return out
+
+    @staticmethod
+    def gaussian_kernel(size_kernel, sigma=1):
+        size_kernel = np.ceil(size_kernel) // 2 * 2 + 1
+        x = np.arange(- np.floor(size_kernel[0] / 2), np.ceil(size_kernel[0] / 2), 1)
+        y = np.arange(- np.floor(size_kernel[1] / 2), np.ceil(size_kernel[1] / 2), 1)
+        if len(size_kernel) == 3:
+            z = np.arange(- np.floor(size_kernel[2] / 2), np.ceil(size_kernel[2] / 2), 1)
+            xx, yy, zz = np.meshgrid(x, y, z)
+            kernel = np.exp(-(xx ** 2 + yy ** 2 + zz ** 2) / (2 * sigma ** 2))
+        else:
+            xx, yy = np.meshgrid(x, y)
+            kernel = np.exp(-(xx ** 2 + yy ** 2) / (2 * sigma ** 2))
+        return kernel
 
     def update_settings(self):
         new_params = self.get_last_entry(self.reference_param_queue)

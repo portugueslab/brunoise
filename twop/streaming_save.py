@@ -39,6 +39,7 @@ class StackSaver(Process):
         self.i_in_plane = 0
         self.i_block = 0
         self.current_data = None
+        self.reference = None
         self.saved_status_queue = Queue()
         self.dtype = np.float32
 
@@ -153,7 +154,7 @@ class StackSaver(Process):
                 compression="blosc",
             )
         else:
-            self.reference_queue.put((self.current_data, self.i_block))
+            self.fill_reference()
         self.i_in_plane = 0
         self.i_block += 1
 
@@ -162,3 +163,17 @@ class StackSaver(Process):
                 self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
             except Empty:
                 pass
+
+    def fill_reference(self):
+        if self.i_block == 0:
+            self.reference = np.zeros((self.save_parameters.n_t,
+                                       self.save_parameters.n_z,
+                                       self.current_data.shape[2],
+                                       self.current_data.shape[3]))
+
+        self.reference[:, self.i_block, :, :] = self.current_data
+        if self.i_block == self.save_parameters.n_z:
+            self.send_reference()
+
+    def send_reference(self):
+        self.reference_queue.put(self.reference)
