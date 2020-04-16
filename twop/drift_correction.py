@@ -9,6 +9,7 @@ from time import sleep
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import convolve
 
+
 class ReferenceSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
@@ -43,7 +44,7 @@ def convert_reference_params(st: ReferenceSettings) -> ReferenceParameters:
     dz = st.dz
     z_th = st.z_th
     n_frames_exp = st.n_frames_exp
-    sigma = st.sigma
+    sigma_k = st.sigma_k
     size_k = st.size_k
     rp = ReferenceParameters(n_frames_ref=n_frames_ref,
                              extra_planes=extra_planes,
@@ -51,7 +52,7 @@ def convert_reference_params(st: ReferenceSettings) -> ReferenceParameters:
                              xy_th=xy_th,
                              z_th=z_th,
                              n_frames_exp=n_frames_exp,
-                             sigma=sigma,
+                             sigma_k=sigma_k,
                              size_k=size_k)
 
     return rp
@@ -111,6 +112,7 @@ class Corrector(Process):
 
     def reference_loop(self):
         stack_4d = self.get_next_entry(self.reference_queue)
+        print(stack_4d)
         self.reference = self.reference_processing(stack_4d)
         self.end_ref_acquisition()
 
@@ -171,6 +173,7 @@ class Corrector(Process):
         self.input_commands_queues["z"].put((vector[2], False))
 
     def reference_processing(self, input_ref):
+        print(input_ref.shape)
         output_ref = np.mean(input_ref, axis=0)
         size_kernel = self.reference_params.size_k
         sigma = self.reference_params.sigma_k

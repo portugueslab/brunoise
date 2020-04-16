@@ -30,7 +30,7 @@ class ExperimentSettings(ParametrizedQt):
         self.name = "recording"
         self.n_planes = Param(1, (1, 500))
         self.dz = Param(1.0, (0.1, 20.0), unit="um")
-        self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
+        self.save_dir = Param(r"C:\Users\Asus\Desktop\sim_exp\results", gui=False)
 
 
 class ScanningSettings(ParametrizedQt):
@@ -117,7 +117,7 @@ class ExperimentState(QObject):
         self.parameter_tree.add(self.reference_settings)
 
         self.end_event = Event()
-        self.external_sync = ZMQcomm()
+        # self.external_sync = ZMQcomm()
         self.duration_queue = Queue()
         self.correction_event = Event()
         self.scanner = Scanner(
@@ -141,6 +141,7 @@ class ExperimentState(QObject):
         self.input_queues = {"x": Queue(), "y": Queue(), "z": Queue()}
         self.output_queues = self.input_queues.copy()  # not sure can be done with queue class
         self.close_setup_event = Event()
+        self.motors = dict()
         for axis in ["x", "y", "z"]:
             self.motors[axis] = MotorControl("COM6", axis=axis)
         self.master_motor = MotorMaster(self.motors, self.input_queues,
@@ -173,7 +174,7 @@ class ExperimentState(QObject):
 
     def start_experiment(self, first_plane=True):
         if not self.reference_event.is_set():
-            duration = self.external_sync.send(self.parameter_tree.serialize())
+            duration = 8 * 60
             if duration is None:
                 self.restart_scanning()
                 return False
@@ -277,7 +278,10 @@ class ExperimentState(QObject):
 
     def send_reference_params(self):
         param_to_send = convert_reference_params(self.reference_settings)
-        n_planes = (self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes
+        if self.reference_event.is_set():
+            n_planes = (self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes
+        else:
+            n_planes = self.experiment_settings.n_planes
         param_to_send.n_planes = n_planes
         self.reference_params = param_to_send
         self.corrector.reference_param_queue.put(param_to_send)

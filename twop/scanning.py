@@ -1,15 +1,10 @@
 from multiprocessing import Event, Process, Queue
 import numpy as np
-
-import nidaqmx
-from nidaqmx.stream_readers import AnalogMultiChannelReader
-from nidaqmx.stream_writers import AnalogMultiChannelWriter
-from nidaqmx.constants import Edge, AcquisitionType, LineGrouping
-
+import twop.scanning_patterns as scanning_patterns
+from twop.simulated_tasks import ReadTask, WriteTask, ShutterTask
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
 
-import scanning_patterns
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum
@@ -68,6 +63,10 @@ class Scanner(Process):
         self.correction_status = False
         self.corrector_queue = Queue()
 
+        self.shutter_task = ShutterTask()
+        self.write_task = WriteTask()
+        self.read_task = ReadTask("syp")
+
     def run(self):
         self.compute_scan_parameters()
         self.run_scanning()
@@ -108,38 +107,6 @@ class Scanner(Process):
         self.read_buffer = np.zeros((2, self.n_samples_in))
         self.mystery_offset = self.scanning_parameters.mystery_offset
 
-    def setup_tasks(self, read_task, write_task, shutter_task):
-        # Configure the channels
-        read_task.ai_channels.add_ai_voltage_chan(
-            "Dev1/ai0:1", min_val=-1, max_val=1
-        )  # channels are 0: green PMT, 1 x galvo pos 2 y galvo pos
-        write_task.ao_channels.add_ao_voltage_chan(
-            "Dev1/ao0:1", min_val=-10, max_val=10
-        )
-        shutter_task.do_channels.add_do_chan(
-            "Dev1/port0/line1", line_grouping=LineGrouping.CHAN_PER_LINE
-        )
-        # Set the timing of both to the onboard clock so that they are synchronised
-        read_task.timing.cfg_samp_clk_timing(
-            rate=self.sample_rate_in,
-            source="OnboardClock",
-            active_edge=Edge.RISING,
-            sample_mode=AcquisitionType.CONTINUOUS,
-            samps_per_chan=self.n_samples_in,
-        )
-        write_task.timing.cfg_samp_clk_timing(
-            rate=self.sample_rate_out,
-            source="OnboardClock",
-            active_edge=Edge.RISING,
-            sample_mode=AcquisitionType.CONTINUOUS,
-            samps_per_chan=self.n_samples_out,
-        )
-
-        # This is necessary to synchronise reading and wrting
-        read_task.triggers.start_trigger.cfg_dig_edge_start_trig(
-            "/Dev1/ao/StartTrigger", Edge.RISING
-        )
-
     def check_start_plane(self):
         if self.scanning_parameters.scanning_state == ScanningState.EXPERIMENT_RUNNING:
             while not self.experiment_start_event.is_set():
@@ -155,9 +122,7 @@ class Scanner(Process):
         except Empty:
             pass
 
-    def scan_loop(self, read_task, write_task):
-        writer = AnalogMultiChannelWriter(write_task.out_stream)
-        reader = AnalogMultiChannelReader(read_task.in_stream)
+    def scan_loop(self):
 
         first_write = True
         i_acquired = 0
@@ -167,26 +132,20 @@ class Scanner(Process):
             or i_acquired < self.scanning_parameters.n_frames
         ):
             # The first write has to be defined before the task starts
-            try:
-                writer.write_many_sample(self.write_signals)
-                if i_acquired == 0:
-                    self.check_start_plane()
-                if first_write:
-                    read_task.start()
-                    write_task.start()
-                    first_write = False
-                reader.read_many_sample(
-                    self.read_buffer,
-                    number_of_samples_per_channel=self.n_samples_in,
-                    timeout=1,
-                )
-                i_acquired += 1
-            except nidaqmx.DaqError as e:
-                print(e)
-                break
+            self.write_task.write_many_sample(self.write_signals)
+            if i_acquired == 0:
+                self.check_start_plane()
+            if first_write:
+                self.read_task.start()
+                self.write_task.start()
+                first_write = False
+            self.read_buffer = self.read_task.read_many_sample(first_write)
+            i_acquired += 1
 
-            data = self.read_buffer[0, :]
+            self.read_buffer = self.read_task.read_many_sample(first_write)
+            data = self.read_buffer
             self.data_queue.put(data)
+
             if self.correction_status is True:
                 self.data_queue_copy.put(data)
 
@@ -245,14 +204,14 @@ class Scanner(Process):
                 self.correction_status = False
             self.scanning_parameters = self.new_parameters
             self.compute_scan_parameters()
-            with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:
-                self.setup_tasks(read_task, write_task, shutter_task)
-                if self.scanning_parameters.reset_shutter or toggle_shutter:
-                    self.toggle_shutter(shutter_task)
-                if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
-                    self.pause_loop()
-                else:
-                    self.scan_loop(read_task, write_task)
+            # with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:
+            #     self.setup_tasks(read_task, write_task, shutter_task)
+            if self.scanning_parameters.reset_shutter or toggle_shutter:
+                self.toggle_shutter(self.shutter_task)
+            if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
+                self.pause_loop()
+            else:
+                self.scan_loop()
 
 
 class ImageReconstructor(Process):
@@ -275,13 +234,6 @@ class ImageReconstructor(Process):
 
             try:
                 image = self.data_in_queue.get(timeout=0.001)
-                self.output_queue.put(
-                    scanning_patterns.reconstruct_image_pattern(
-                        np.roll(image, self.scanning_parameters.mystery_offset),
-                        *self.waveform,
-                        (self.scanning_parameters.n_x, self.scanning_parameters.n_y),
-                        self.scanning_parameters.n_bin,
-                    )
-                )
+                self.output_queue.put(image)
             except Empty:
                 pass
