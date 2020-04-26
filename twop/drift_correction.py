@@ -133,7 +133,7 @@ class Corrector(Process):
         return vector
 
     def exp_loop(self):
-        self.calibration_vector = [0, 0, self.reference_params.dz.value / 1000]
+        self.calibration_vector = [1, 1, self.reference_params.dz.value / 1000]
         while not self.stop_event.is_set():
             number_of_frames = 0
             frame_container = []
@@ -201,11 +201,11 @@ class Corrector(Process):
     @staticmethod
     def get_next_entry(queue):
         out = None
-        while out is not None:
+        while out is None:
             try:
                 out = queue.get(timeout=0.001)
             except Empty:
-                break
+                pass
         return out
 
     @staticmethod

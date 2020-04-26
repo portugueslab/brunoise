@@ -228,8 +228,8 @@ class ExperimentState(QObject):
         end all parallel processes, close all communication channels
 
         """
-        for motor in self.motors.values():
-            motor.end_session()
+        # for motor in self.motors.values():
+        #     motor.end_session()
         self.power_controller.terminate_connection()
         self.close_setup_event.set()
         self.scanner.stop_event.set()
@@ -259,11 +259,12 @@ class ExperimentState(QObject):
         self.sig_scanning_changed.emit()
 
     def send_save_params(self):
+        # TODO change here
         if not self.reference_event.is_set():
             self.saver.saving_parameter_queue.put(
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
-                    plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                    plane_size=(self.scanner.read_task.plane_size[0], self.scanner.read_task.plane_size[1]),
                     n_z=self.experiment_settings.n_planes,
                 )
             )
@@ -271,7 +272,7 @@ class ExperimentState(QObject):
             self.saver.saving_parameter_queue.put(
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
-                    plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                    plane_size=(self.scanner.read_task.plane_size[0], self.scanner.read_task.plane_size[1]),
                     n_z=(self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes,
                 )
             )

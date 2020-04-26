@@ -23,7 +23,7 @@ class MotorMaster(Process):
         self.get_positions()
 
     def run(self) -> None:
-        while not self.close_setup_event:
+        while not self.close_setup_event.is_set():
             self.get_positions()
             self.move_motors()
         self.close_setups()
@@ -41,12 +41,13 @@ class MotorMaster(Process):
 
     def move_motors(self):
         for axis in self.motors.keys():
-            try:
-                package = self.get_last_entry(self.input_queues[axis])
+            package = self.get_last_entry(self.input_queues[axis])
+            if package:
+                print(package)
                 mov_value = package[0]
                 mov_type = package[1].name
                 empty_queue = False
-            except Empty:
+            else:
                 empty_queue = True
 
             if empty_queue is False:
@@ -58,7 +59,7 @@ class MotorMaster(Process):
 
     @staticmethod
     def get_last_entry(queue):
-        out = None
+        out = tuple()
         while True:
             try:
                 out = queue.get(timeout=0.001)

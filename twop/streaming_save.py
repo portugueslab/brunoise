@@ -105,6 +105,7 @@ class StackSaver(Process):
             self.current_data[: self.i_in_plane, :, :, :] = old_data
 
     def fill_dataset(self, frame):
+        print(frame.shape)
         self.current_data[self.i_in_plane, 0, :, :] = self.cast(frame)
         self.i_in_plane += 1
         self.saved_status_queue.put(
