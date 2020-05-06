@@ -67,7 +67,6 @@ class StackSaver(Process):
             (self.save_parameters.n_t, 1, *self.save_parameters.plane_size),
             dtype=self.dtype,
         )
-        print("preallocation", self.current_data.shape)
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
         while (
             i_received < n_total
@@ -106,7 +105,6 @@ class StackSaver(Process):
             self.current_data[: self.i_in_plane, :, :, :] = old_data
 
     def fill_dataset(self, frame):
-        print("frame shape:",frame.shape)
         self.current_data[self.i_in_plane, 0, :, :] = self.cast(frame)
         self.i_in_plane += 1
         self.saved_status_queue.put(
@@ -168,14 +166,16 @@ class StackSaver(Process):
 
     def fill_reference(self):
         if self.i_block == 0:
-            self.reference = np.zeros((self.save_parameters.n_t,
-                                       self.save_parameters.n_z,
+            self.reference = np.zeros((
+                                       int(self.save_parameters.n_t),
+                                       int(self.save_parameters.n_z),
                                        self.current_data.shape[2],
                                        self.current_data.shape[3]))
 
-        self.reference[:, 0,  self.i_block, :, :] = self.current_data
-        if self.i_block == self.save_parameters.n_z:
+        self.reference[:,  self.i_block, :, :] = self.current_data[:,0,:,:]
+        if self.i_block == self.save_parameters.n_z - 1:
             self.send_reference()
 
     def send_reference(self):
+        print("ref into queue")
         self.reference_queue.put(self.reference)

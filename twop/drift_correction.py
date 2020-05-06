@@ -207,6 +207,7 @@ class Corrector(Process):
         while out is None:
             try:
                 out = queue.get(timeout=0.001)
+                print(out)
             except Empty:
                 pass
         return out

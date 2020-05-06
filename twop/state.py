@@ -30,7 +30,7 @@ class ExperimentSettings(ParametrizedQt):
         self.name = "recording"
         self.n_planes = Param(1, (1, 500))
         self.dz = Param(1.0, (0.1, 20.0), unit="um")
-        self.save_dir = Param(r"C:\Users\Asus\Desktop\sim_exp\results", gui=False)
+        self.save_dir = Param(r"C:\Users\epaoli\Desktop\sim_exp\results", gui=False)
 
 
 class ScanningSettings(ParametrizedQt):
@@ -274,7 +274,7 @@ class ExperimentState(QObject):
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
                     plane_size=(self.scanner.read_task.plane_size[0], self.scanner.read_task.plane_size[1]),
-                    n_z=1,
+                    n_z=self.reference_settings.dz,
                 )
             )
 

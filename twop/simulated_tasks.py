@@ -27,14 +27,14 @@ class WriteTask:
 class ReadTask:
     def __init__(self, type_exp):
         self.time_loop = 0
-        self.master_path = Path(r"C:\Users\Asus\Desktop\sim_exp") / type_exp
+        self.master_path = Path(r"C:\Users\epaoli\Desktop\sim_exp") / type_exp
         list_files = list(self.master_path.glob("*"))
         self.sim_path = list_files[0]
         if self.sim_path.suffix == ".tif":
             self.data = -(tifffile.imread(str(self.sim_path)))
             print(self.data.shape)
         elif self.sim_path.suffix == ".h5":
-            self.data = np.expand_dims(fl.load(str(self.sim_path))["stack_4D"][:, 0, :, :], 0)
+            self.data = fl.load(str(self.sim_path))["stack_4D"][:, 0, :, :]
         self.plane_size = self.data.shape[1:]
 
     def start(self):
