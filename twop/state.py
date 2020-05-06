@@ -22,7 +22,7 @@ from enum import Enum
 from time import sleep
 from sequence_diagram import SequenceDiagram
 from twop.drift_correction import *
-
+from twop.objective_motor_sliders import MovementType
 
 class ExperimentSettings(ParametrizedQt):
     def __init__(self):
@@ -141,6 +141,7 @@ class ExperimentState(QObject):
         self.input_queues = {"x": Queue(), "y": Queue(), "z": Queue()}
         self.output_queues = self.input_queues.copy()  # not sure can be done with queue class
         self.close_setup_event = Event()
+        self.move_type = MovementType(True)
         self.motors = dict()
         for axis in ["x", "y", "z"]:
             self.motors[axis] = MotorControl("COM6", axis=axis)
@@ -217,9 +218,9 @@ class ExperimentState(QObject):
 
     def advance_plane(self):
         if not self.reference_event.is_set():
-            self.input_queues["z"].put((self.experiment_settings.dz / 1000, False))
+            self.input_queues["z"].put((self.experiment_settings.dz / 1000, self.move_type))
         else:
-            self.input_queues["z"].put((self.reference_params.dz / 1000, False))
+            self.input_queues["z"].put((self.reference_params.dz / 1000, self.move_type))
         sleep(0.2)
         self.start_experiment(first_plane=False)
 
@@ -273,7 +274,7 @@ class ExperimentState(QObject):
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
                     plane_size=(self.scanner.read_task.plane_size[0], self.scanner.read_task.plane_size[1]),
-                    n_z=(self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes,
+                    n_z=1,
                 )
             )
 

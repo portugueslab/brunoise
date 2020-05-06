@@ -34,7 +34,7 @@ class ReadTask:
             self.data = -(tifffile.imread(str(self.sim_path)))
             print(self.data.shape)
         elif self.sim_path.suffix == ".h5":
-            self.data = fl.load(str(self.sim_path))["stack_4D"][:, 0, :, :]
+            self.data = np.expand_dims(fl.load(str(self.sim_path))["stack_4D"][:, 0, :, :], 0)
         self.plane_size = self.data.shape[1:]
 
     def start(self):

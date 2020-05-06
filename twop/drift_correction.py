@@ -7,6 +7,7 @@ from queue import Empty
 from dataclasses import dataclass
 from time import sleep
 from scipy.ndimage.filters import gaussian_filter
+from twop.objective_motor_sliders import MovementType
 from scipy.signal import convolve
 
 
@@ -92,6 +93,7 @@ class Corrector(Process):
         self.x_pos = None
         self.y_pos = None
         self.z_pos = None
+        self.mov_type = MovementType(False)
 
         self.reference = None
         self.calibration_vector = None
@@ -111,6 +113,7 @@ class Corrector(Process):
                 self.correction_event.clear()
 
     def reference_loop(self):
+        print("ref loop")
         stack_4d = self.get_next_entry(self.reference_queue)
         print(stack_4d)
         self.reference = self.reference_processing(stack_4d)
@@ -122,7 +125,7 @@ class Corrector(Process):
         planes = np.size(self.reference, 0)
         for i in range(planes):
             ref_im = np.squeeze(self.reference[i, :, :])
-            output = register_translation(ref_im, test_image)
+            output = None # register_translation(ref_im, test_image)
             vectors.append(output[0])
             errors.append(output[1])
         ind = errors.index(min(errors))
@@ -157,20 +160,20 @@ class Corrector(Process):
         # self.reference_params.n_planes = self.reference_params.n_planes + 1
         up_planes = self.reference_params.extra_planes
         distance = (self.reference_params.dz / 1000) * up_planes
-        self.input_commands_queues["z"].put((distance, False))
+        self.input_commands_queues["z"].put((distance, self.mov_type))
         sleep(0.2)
 
     def end_ref_acquisition(self):
-        self.input_commands_queues["z"].put((self.z_pos, True))
+        self.input_commands_queues["z"].put((self.z_pos, self.mov_type))
 
     def real_units(self, raw_vector):
         vector = np.multiply(raw_vector, self.calibration_vector)
         return vector
 
     def apply_correction(self, vector):
-        self.input_commands_queues["x"].put((vector[1], False))
-        self.input_commands_queues["y"].put((vector[0], False))
-        self.input_commands_queues["z"].put((vector[2], False))
+        self.input_commands_queues["x"].put((vector[1], self.mov_type))
+        self.input_commands_queues["y"].put((vector[0], self.mov_type))
+        self.input_commands_queues["z"].put((vector[2], self.mov_type))
 
     def reference_processing(self, input_ref):
         print(input_ref.shape)
