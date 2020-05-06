@@ -113,10 +113,9 @@ class Corrector(Process):
                 self.correction_event.clear()
 
     def reference_loop(self):
-        print("ref loop")
         stack_4d = self.get_next_entry(self.reference_queue)
-        print(stack_4d)
         self.reference = self.reference_processing(stack_4d)
+        print(self.reference.shape)
         self.end_ref_acquisition()
 
     def compute_registration(self, test_image):
@@ -152,11 +151,9 @@ class Corrector(Process):
                 self.apply_correction(vector)
 
     def start_ref_acquisition(self):
-        print(self.reference_params.n_planes)
         self.x_pos = self.get_last_entry(self.output_positions_queues["x"])
         self.y_pos = self.get_last_entry(self.output_positions_queues["y"])
         self.z_pos = self.get_last_entry(self.output_positions_queues["z"])
-        print(self.x_pos, self.y_pos, self.z_pos)
         # self.reference_params.n_planes = self.reference_params.n_planes + 1
         up_planes = self.reference_params.extra_planes
         distance = (self.reference_params.dz / 1000) * up_planes
@@ -176,7 +173,6 @@ class Corrector(Process):
         self.input_commands_queues["z"].put((vector[2], self.mov_type))
 
     def reference_processing(self, input_ref):
-        print(input_ref.shape)
         output_ref = np.mean(input_ref, axis=0)
         size_kernel = self.reference_params.size_k
         sigma = self.reference_params.sigma_k
@@ -207,7 +203,6 @@ class Corrector(Process):
         while out is None:
             try:
                 out = queue.get(timeout=0.001)
-                print(out)
             except Empty:
                 pass
         return out

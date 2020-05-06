@@ -177,5 +177,4 @@ class StackSaver(Process):
             self.send_reference()
 
     def send_reference(self):
-        print("ref into queue")
         self.reference_queue.put(self.reference)

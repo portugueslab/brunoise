@@ -43,7 +43,6 @@ class MotorMaster(Process):
         for axis in self.motors.keys():
             package = self.get_last_entry(self.input_queues[axis])
             if package:
-                print(package)
                 mov_value = package[0]
                 mov_type = package[1].name
                 empty_queue = False
@@ -51,7 +50,6 @@ class MotorMaster(Process):
                 empty_queue = True
 
             if empty_queue is False:
-                print(mov_value)
                 if mov_type is "relative":
                     self.motors[axis].move_rel(mov_value)
                 elif mov_type is "absolute":
@@ -121,7 +119,7 @@ class MotorControl:
         pass
 
     def execute_motor(self, command):
-        print(command)
+        print("motor", self.axes, "moved to:", command)
 
     def start_session(self):
         # motor on

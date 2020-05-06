@@ -260,7 +260,6 @@ class ExperimentState(QObject):
         self.sig_scanning_changed.emit()
 
     def send_save_params(self):
-        # TODO change here
         if not self.reference_event.is_set():
             self.saver.saving_parameter_queue.put(
                 SavingParameters(
