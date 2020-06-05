@@ -1,10 +1,17 @@
 from multiprocessing import Event, Process, Queue
 import numpy as np
+try:
+    import nidaqmx
+    from nidaqmx import Task
+    from nidaqmx.stream_readers import AnalogMultiChannelReader
+    from nidaqmx.stream_writers import AnalogMultiChannelWriter
+    from nidaqmx.constants import Edge, AcquisitionType, LineGrouping
+except ImportError:
+    import theknights
+    from theknights.stream_readers import AnalogMultiChannelReader
+    from theknights.stream_writers import AnalogMultiChannelWriter
+    from theknights.constants import Edge, AcquisitionType, LineGrouping
 
-import nidaqmx
-from nidaqmx.stream_readers import AnalogMultiChannelReader
-from nidaqmx.stream_writers import AnalogMultiChannelWriter
-from nidaqmx.constants import Edge, AcquisitionType, LineGrouping
 
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
@@ -232,7 +239,7 @@ class Scanner(Process):
 
             self.scanning_parameters = self.new_parameters
             self.compute_scan_parameters()
-            with nidaqmx.Task() as write_task, nidaqmx.Task() as read_task, nidaqmx.Task() as shutter_task:
+            with Task() as write_task, Task() as read_task, Task() as shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task)
                 if self.scanning_parameters.reset_shutter or toggle_shutter:
                     self.toggle_shutter(shutter_task)
