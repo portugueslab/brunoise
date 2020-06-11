@@ -8,6 +8,8 @@ import numpy as np
 import shutil
 import json
 import yagmail
+from PIL import Image
+import os
 
 
 @dataclass
@@ -52,7 +54,7 @@ class StackSaver(Process):
     def save_loop(self):
         # remove files if some are found at the save location
         if (
-            Path(self.save_parameters.output_dir) / "original" / "stack_metadata.json"
+                Path(self.save_parameters.output_dir) / "original" / "stack_metadata.json"
         ).is_file():
             shutil.rmtree(Path(self.save_parameters.output_dir) / "original")
 
@@ -68,9 +70,9 @@ class StackSaver(Process):
         )
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
         while (
-            i_received < n_total
-            and self.saving_signal.is_set()
-            and not self.stop_signal.is_set()
+                i_received < n_total
+                and self.saving_signal.is_set()
+                and not self.stop_signal.is_set()
         ):
             self.receive_save_parameters()
             try:
@@ -82,6 +84,8 @@ class StackSaver(Process):
                 frame = self.data_queue.get(timeout=0.01)
                 self.fill_dataset(frame)
                 i_received += 1
+                if self.i_block == self.save_parameters.n_z % 5 and self.save_parameters.notification_email != "None":
+                    self.send_email_update(frame=frame)
             except Empty:
                 pass
 
@@ -121,12 +125,12 @@ class StackSaver(Process):
 
     def finalize_dataset(self):
         with open(
-            (
-                Path(self.save_parameters.output_dir)
-                / "original"
-                / "stack_metadata.json"
-            ),
-            "w",
+                (
+                        Path(self.save_parameters.output_dir)
+                        / "original"
+                        / "stack_metadata.json"
+                ),
+                "w",
         ) as f:
             json.dump(
                 {
@@ -156,23 +160,24 @@ class StackSaver(Process):
         )
         self.i_in_plane = 0
         self.i_block += 1
-        if self.save_parameters.notification_email != "None":
-            self.send_email_update()
 
-    def send_email_update(self, end=False):
+    def send_email_update(self, frame=None, end=False):
         sender_email = "fishgitbot@gmail.com"
         receiver_email = self.save_parameters.notification_email
         subject = "Progress update: Your 2P experiment"
         # TODO: Add the password in the lightsheet computer
         sender_password = ""
+        if frame:
+            last_frame = Image.fromarray(frame)
+            last_frame.save("last_frame.png")
 
         yag = yagmail.SMTP(user=sender_email, password=sender_password)
 
         body = [
             "Hey!",
             "\n",
-            "A new plane has been successfully acquired in your 2P experiment!",
-            "This was the plane #{}".format(self.i_block),
+            "Update on your 2P experiment",
+            "Plane #{} has just been acquired. See attached how this looks like".format(self.i_block),
             "\n"
             "Always yours,",
             "fishgitbot"
@@ -188,12 +193,25 @@ class StackSaver(Process):
                 "fishgitbot"
             ]
 
+        if frame:
+            yag.send(
+                to=receiver_email,
+                subject=subject,
+                contents=body,
+                attachments=r"last_frame.png"
+            )
+        else:
+            yag.send(
+                to=receiver_email,
+                subject=subject,
+                contents=body,
+            )
 
-        yag.send(
-            to=receiver_email,
-            subject=subject,
-            contents=body,
-        )
+        try:
+            os.remove(r"last_frame.png")
+        except OSError:
+            pass
+
 
     def receive_save_parameters(self):
         try:
