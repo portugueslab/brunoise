@@ -7,6 +7,7 @@ import flammkuchen as fl
 import numpy as np
 import shutil
 import json
+import yagmail
 
 
 @dataclass
@@ -15,6 +16,7 @@ class SavingParameters:
     plane_size: tuple
     n_t: int = 100
     n_z: int = 1
+    notification_email: str = "None"
 
 
 @dataclass
@@ -85,6 +87,8 @@ class StackSaver(Process):
 
         if self.i_block > 0:
             self.finalize_dataset()
+            if self.save_parameters.notification_email != "None":
+                self.send_email_update(end=True)
 
         self.saving_signal.clear()
         self.save_parameters = None
@@ -152,6 +156,44 @@ class StackSaver(Process):
         )
         self.i_in_plane = 0
         self.i_block += 1
+        if self.save_parameters.notification_email != "None":
+            self.send_email_update()
+
+    def send_email_update(self, end=False):
+        sender_email = "fishgitbot@gmail.com"
+        receiver_email = self.save_parameters.notification_email
+        subject = "Progress update: Your 2P experiment"
+        # TODO: Add the password in the lightsheet computer
+        sender_password = ""
+
+        yag = yagmail.SMTP(user=sender_email, password=sender_password)
+
+        body = [
+            "Hey!",
+            "\n",
+            "A new plane has been successfully acquired in your 2P experiment!",
+            "This was the plane #{}".format(self.i_block),
+            "\n"
+            "Always yours,",
+            "fishgitbot"
+        ]
+
+        if end:
+            body = [
+                "Hey!",
+                "\n",
+                "Your 2P experiment has finished! Come pick up your little fish",
+                "\n"
+                "Always yours,",
+                "fishgitbot"
+            ]
+
+
+        yag.send(
+            to=receiver_email,
+            subject=subject,
+            contents=body,
+        )
 
     def receive_save_parameters(self):
         try:

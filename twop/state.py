@@ -30,6 +30,7 @@ class ExperimentSettings(ParametrizedQt):
         self.n_planes = Param(1, (1, 500))
         self.dz = Param(1.0, (0.1, 20.0), unit="um")
         self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
+        self.notification_email = Param("None")
 
 
 class ScanningSettings(ParametrizedQt):
@@ -235,6 +236,7 @@ class ExperimentState(QObject):
                 output_dir=Path(self.experiment_settings.save_dir),
                 plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
                 n_z=self.experiment_settings.n_planes,
+                notification_email=self.experiment_settings.notification_email
             )
         )
 
