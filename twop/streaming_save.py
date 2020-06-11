@@ -84,7 +84,8 @@ class StackSaver(Process):
                 frame = self.data_queue.get(timeout=0.01)
                 self.fill_dataset(frame)
                 i_received += 1
-                if self.i_block == self.save_parameters.n_z % 5 and self.save_parameters.notification_email != "None":
+                if (self.i_block % (self.save_parameters.n_z / 5)) == 0 and \
+                        self.save_parameters.notification_email != "None":
                     self.send_email_update(frame=frame)
             except Empty:
                 pass
