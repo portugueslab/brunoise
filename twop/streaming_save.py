@@ -10,6 +10,7 @@ import json
 import yagmail
 from PIL import Image
 import os
+import time
 
 
 @dataclass
@@ -19,6 +20,7 @@ class SavingParameters:
     n_t: int = 100
     n_z: int = 1
     notification_email: str = "None"
+    notification_frequency: int = 3
 
 
 @dataclass
@@ -84,9 +86,6 @@ class StackSaver(Process):
                 frame = self.data_queue.get(timeout=0.01)
                 self.fill_dataset(frame)
                 i_received += 1
-                if (self.i_block % (self.save_parameters.n_z / 5)) == 0 and \
-                        self.save_parameters.notification_email != "None":
-                    self.send_email_update(frame=frame)
             except Empty:
                 pass
 
@@ -159,17 +158,22 @@ class StackSaver(Process):
             {"stack_4D": self.current_data},
             compression="blosc",
         )
-        self.i_in_plane = 0
         self.i_block += 1
+
+        if self.i_block % self.save_parameters.notification_frequency == 0 and \
+                self.save_parameters.notification_email != "None":
+            self.send_email_update(frame=self.current_data[self.i_in_plane - 1, 0, :, :])
+
+        self.i_in_plane = 0
 
     def send_email_update(self, frame=None, end=False):
         sender_email = "fishgitbot@gmail.com"
         receiver_email = self.save_parameters.notification_email
         subject = "Progress update: Your 2P experiment"
-        # TODO: Add the password in the lightsheet computer
-        sender_password = ""
-        if frame:
-            last_frame = Image.fromarray(frame)
+        sender_password = "think_clear2020"
+        if frame is not None:
+            last_frame = Image.fromarray(frame, mode="L")
+            #last_frame = last_frame.convert("RGB")
             last_frame.save("last_frame.png")
 
         yag = yagmail.SMTP(user=sender_email, password=sender_password)
@@ -194,7 +198,7 @@ class StackSaver(Process):
                 "fishgitbot"
             ]
 
-        if frame:
+        if frame is not None:
             yag.send(
                 to=receiver_email,
                 subject=subject,
