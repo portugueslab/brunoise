@@ -7,7 +7,7 @@ try:
     from nidaqmx.stream_writers import AnalogMultiChannelWriter
     from nidaqmx.constants import Edge, AcquisitionType, LineGrouping
 except ImportError:
-    import theknights
+    from theknights.task import Task
     from theknights.stream_readers import AnalogMultiChannelReader
     from theknights.stream_writers import AnalogMultiChannelWriter
     from theknights.constants import Edge, AcquisitionType, LineGrouping
@@ -187,9 +187,7 @@ class Scanner(Process):
             except nidaqmx.DaqError as e:
                 print(e)
                 break
-
             self.data_queue.put(self.read_buffer[0, :])
-
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
             try:
