@@ -31,7 +31,7 @@ class SavingStatus:
 
 
 class StackSaver(Process):
-    def __init__(self, stop_signal, data_queue, n_frames_queue):
+    def __init__(self, stop_signal, data_queue, n_frames_queue, ref_event, ref_queue):
         super().__init__()
         self.stop_signal = stop_signal
         self.data_queue = data_queue
@@ -45,6 +45,8 @@ class StackSaver(Process):
         self.current_data = None
         self.saved_status_queue = Queue()
         self.dtype = np.float32
+        self.ref_event = ref_event
+        self.ref_queue = ref_queue
 
     def run(self):
         while not self.stop_signal.is_set():

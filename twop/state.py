@@ -117,7 +117,7 @@ class ExperimentState(QObject):
         self.parameter_tree.add(self.reference_settings)
 
         self.end_event = Event()
-        # self.external_sync = ZMQcomm()
+        self.external_sync = ZMQcomm()
         self.duration_queue = Queue()
         self.correction_event = Event()
         self.scanner = Scanner(
@@ -175,7 +175,7 @@ class ExperimentState(QObject):
 
     def start_experiment(self, first_plane=True):
         if not self.reference_event.is_set():
-            duration = 8 * 60
+            duration = 8 * 60  # change
             if duration is None:
                 self.restart_scanning()
                 return False

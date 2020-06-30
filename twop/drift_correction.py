@@ -87,7 +87,8 @@ class Corrector(Process):
         self.data_queue = data_queue
         # queue for the communication with the master motor class (in a separate process), this is for move the motors
         self.input_commands_queues = input_commands_queues
-        # queue for the communication with the master motor class (in a separate process), this is for read the last position
+        # queue for the communication with the master motor class (in a separate process),
+        # this is for read the last position
         self.output_positions_queues = output_positions_queues
 
         self.x_pos = None
