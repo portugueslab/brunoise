@@ -43,6 +43,7 @@ class StackSaver(Process):
         self.i_in_plane = 0
         self.i_block = 0
         self.current_data = None
+        self.reference = None
         self.saved_status_queue = Queue()
         self.dtype = np.float32
         self.ref_event = ref_event
@@ -154,19 +155,20 @@ class StackSaver(Process):
             )
 
     def complete_plane(self):
-        fl.save(
-            Path(self.save_parameters.output_dir)
-            / "original/{:04d}.h5".format(self.i_block),
-            {"stack_4D": self.current_data},
-            compression="blosc",
-        )
-        self.i_block += 1
-
-        if self.i_block % self.save_parameters.notification_frequency == 0 and \
-                self.save_parameters.notification_email != "None":
-            self.send_email_update(frame=self.current_data[self.i_in_plane - 1, 0, :, :])
-
+        if not self.ref_event.is_set():
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "original/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data},
+                compression="blosc",
+            )
+            if self.i_block % self.save_parameters.notification_frequency == 0 and \
+                    self.save_parameters.notification_email != "None":
+                self.send_email_update(frame=self.current_data[self.i_in_plane - 1, 0, :, :])
+        else:
+            self.fill_reference()
         self.i_in_plane = 0
+        self.i_block += 1
 
     def send_email_update(self, frame=None, end=False):
         sender_email = "fishgitbot@gmail.com"
@@ -219,9 +221,23 @@ class StackSaver(Process):
         except OSError:
             pass
 
-
     def receive_save_parameters(self):
         try:
             self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
         except Empty:
             pass
+
+    def fill_reference(self):
+        if self.i_block == 0:
+            self.reference = np.zeros((
+                                       int(self.save_parameters.n_t),
+                                       int(self.save_parameters.n_z),
+                                       self.current_data.shape[2],
+                                       self.current_data.shape[3]))
+
+        self.reference[:,  self.i_block, :, :] = self.current_data[:,0,:,:]
+        if self.i_block == self.save_parameters.n_z - 1:
+            self.send_reference()
+
+    def send_reference(self):
+        self.ref_queue.put(self.reference)
