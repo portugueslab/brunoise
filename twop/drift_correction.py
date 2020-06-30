@@ -97,7 +97,7 @@ class Corrector(Process):
         self.mov_type = MovementType(False)
 
         self.reference = None
-        self.calibration_vector = None
+        self.calibration_vector = [] #x,y,z cal vect
         self.reference_params = None
 
     def run(self):
@@ -223,9 +223,13 @@ class Corrector(Process):
         return kernel
 
     def update_settings(self):
-        new_params = self.get_last_entry(self.reference_param_queue)
-        if new_params is not None:
-            self.reference_params = new_params
         new_params = self.get_last_entry(self.scanning_parameters_queue)
         if new_params is not None:
             self.scanning_parameters = new_params
+
+    def calculate_fov(self):
+        # calculate pix per microns
+        # formula: width FOV (microns) = 167.789 * Voltage
+        conv_fact = 167.789
+        w_fov = conv_fact * self.scanning_parameters.voltage_x
+        return self.scanning_parameters.n_x / w_fov
