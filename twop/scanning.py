@@ -60,9 +60,10 @@ def compute_waveform(sp: ScanningParameters):
 
 
 class Scanner(Process):
-    def __init__(self, experiment_start_event, duration_queue, max_queuesize=200):
+    def __init__(self, experiment_start_event, duration_queue, max_queuesize=200, correction=None):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
+        self.data_queue_copy = ArrayQueue(max_mbytes=max_queuesize)
         self.parameter_queue = Queue()
         self.stop_event = Event()
         self.experiment_start_event = experiment_start_event
@@ -70,6 +71,9 @@ class Scanner(Process):
         self.new_parameters = copy(self.scanning_parameters)
         self.duration_queue = duration_queue
         self.n_frames_queue = Queue()
+        self.correction_event = correction
+        self.correction_status = False
+        self.corrector_queue = Queue()
 
     def run(self):
         self.compute_scan_parameters()
@@ -188,6 +192,8 @@ class Scanner(Process):
                 print(e)
                 break
             self.data_queue.put(self.read_buffer[0, :])
+            if self.correction_status is True:
+                self.data_queue_copy.put(self.read_buffer[0, :])
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
             try:
@@ -234,13 +240,17 @@ class Scanner(Process):
                 and self.scanning_parameters.scanning_state == ScanningState.PAUSED
             ):
                 toggle_shutter = True
-
+            if self.correction_event.is_set():
+                self.correction_status = True
+            else:
+                self.correction_status = False
             self.scanning_parameters = self.new_parameters
             self.compute_scan_parameters()
             with Task() as write_task, Task() as read_task, Task() as shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task)
                 if self.scanning_parameters.reset_shutter or toggle_shutter:
                     self.toggle_shutter(shutter_task)
+                    pass
                 if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
                     self.pause_loop()
                 else:
