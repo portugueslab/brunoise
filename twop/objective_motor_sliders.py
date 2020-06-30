@@ -11,23 +11,34 @@ from PyQt5.QtWidgets import (
 
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QTimer
+from queue import Empty
+from enum import Enum
+
+
+class MovementType(Enum):
+    absolute = True
+    relative = False
 
 
 class MotionControlXYZ(QWidget):
-    def __init__(self, motors):
+    def __init__(self, input_queues, output_queues):
         super().__init__()
         self.setLayout(QGridLayout())
 
-        for key, value in motors.items():
-            wid = MotorSlider(name=key, motor=value)
+        for axis in input_queues.keys():
+            wid = MotorSlider(name=axis,
+                              input_queue=input_queues[axis],
+                              output_queue=output_queues[axis]
+                              )
             self.layout().addWidget(wid)
 
 
 class PrecisionSingleSliderMotorControl(PrecisionSingleSlider):
-    def __init__(self, *args, motor=None, pos=None, **kwargs):
+    def __init__(self, *args, input_queue=None, output_queue=None, pos=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.pos = pos
-        self.motor = motor
+        self.input_queue = input_queue
+        self.output_queue = output_queue
         self.axes_pos = 0
         self.indicator_color = QColor(178, 0, 0)
 
@@ -60,7 +71,7 @@ class MotorSlider(QWidget):
     sig_changed = pyqtSignal(float)
     sig_end_session = pyqtSignal()
 
-    def __init__(self, motor=None, move_limit_low=-3, move_limit_high=3, name=""):
+    def __init__(self, input_queue=None, output_queue=None, move_limit_low=-3, move_limit_high=3, name=""):
         super().__init__()
         self.name = name
         self.grid_layout = QGridLayout()
@@ -68,13 +79,15 @@ class MotorSlider(QWidget):
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
         self.spin_val_desired_pos = QDoubleSpinBox()
         self.spin_val_actual_pos = QDoubleSpinBox()
-
-        value = motor.home_pos
+        self.input_queue = input_queue
+        self.output_queue = output_queue
+        self.mov_type = MovementType(True)
+        value = self.output_queue.get(timeout=0.001)
         min_range = value + move_limit_low
         max_range = value + move_limit_high
 
         self.slider = PrecisionSingleSliderMotorControl(
-            default_value=value, min=min_range, max=max_range, pos=value, motor=motor
+            default_value=value, min=min_range, max=max_range, pos=value, input_queue=None, output_queue=None,
         )
         for spin_val in [self.spin_val_actual_pos, self.spin_val_desired_pos]:
             spin_val.setRange(min_range, max_range)
@@ -95,27 +108,29 @@ class MotorSlider(QWidget):
 
         self.setLayout(self.grid_layout)
         self.slider.sig_changed.connect(self.update_values)
-        self.sig_changed.connect(self.slider.motor.move_abs)
 
         self._timer_painter = QTimer(self)
         self._timer_painter.timeout.connect(self.update_actual_pos)
         self._timer_painter.start()
 
     def update_actual_pos(self):
-        if self.slider.motor.connection is True:
-            pos = self.slider.motor.get_position()
-            if pos is not None:
-                self.spin_val_actual_pos.setValue(pos)
-                self.slider.axes_pos = pos
+        while True:
+            try:
+                pos = self.output_queue.get(timeout=0.001)
+            except Empty:
+                break
+            self.spin_val_actual_pos.setValue(pos)
+            self.slider.axes_pos = pos
 
     def update_values(self, val):
         self.spin_val_desired_pos.setValue(val)
-        self.sig_changed.emit(val)
+        self.input_queue.put((val, self.mov_type))
 
     def update_slider(self, new_val):
         self.slider.pos = new_val
         self.slider.update()
-        self.sig_changed.emit(new_val)
+
+        self.input_queue.put((new_val, self.mov_type))
 
     def update_external(self, new_val):
         self.slider.pos = new_val

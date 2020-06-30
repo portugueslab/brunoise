@@ -19,14 +19,7 @@ class LaserPowerControl:
         self.encoding = encoding
         self.port = port
         self.device = device
-        rm = pyvisa.ResourceManager()
-        self.rotatory_stage = rm.open_resource(
-            port,
-            baud_rate=self.baudrate,
-            parity=self.parity,
-            encoding=self.encoding,
-            open_timeout=1,
-        )
+        self.rotatory_stage = None
         self.execute_home_search()
 
     def get_position(self):
@@ -37,24 +30,24 @@ class LaserPowerControl:
 
     def execute_home_search(self):
         input_m = str(self.device) + "OR"
-        self.rotatory_stage.write(input_m)
+        print("power_control home search...")
 
     def get_upper_bound(self):
         upper_bound = ""
         input_m = str(self.device) + "SR" + upper_bound
-        upper_bound = self.rotatory_stage.query(input_m)
-        return upper_bound
+        print("power_control get upper bound...")
+        return 100
 
     def get_lower_bound(self):
         lower_bound = ""
         input_m = str(self.device) + "SL" + lower_bound
-        lower_bound = self.rotatory_stage.query(input_m)
-        return lower_bound
+        print("power_control get lower bound...")
+        return 0
 
     def move_abs(self, target_power_percent=0):
         target_position = self.unit_transformer(target_power_percent)
         input_m = str(self.device) + "PA" + str(target_position)
-        self.rotatory_stage.write(input_m)
+        print("Set power to:", target_position)
 
     def terminate_connection(self):
         self.rotatory_stage.close()

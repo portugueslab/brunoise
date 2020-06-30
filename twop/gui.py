@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QCheckBox,
 )
-from state import ExperimentState, ScanningParameters, frame_duration
+from twop.state import ExperimentState, ScanningParameters, frame_duration
 from twop.objective_motor_sliders import MotionControlXYZ
 
 import pyqtgraph as pg
@@ -51,6 +51,7 @@ class ExperimentControl(QWidget):
         self.startstop_button = QPushButton()
         self.set_saving()
         self.chk_pause = QCheckBox("Pause after experiment")
+        self.chk_drift_corr = QCheckBox("Drift Correction")
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
         self.plane_progress.setFormat("Frame %v of %m")
@@ -62,6 +63,7 @@ class ExperimentControl(QWidget):
         self.layout().addWidget(self.save_location_button)
         self.layout().addWidget(self.startstop_button)
         self.layout().addWidget(self.chk_pause)
+        self.layout().addWidget(self.chk_drift_corr)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
 
@@ -78,6 +80,11 @@ class ExperimentControl(QWidget):
         )
 
     def toggle_start(self):
+        if self.chk_drift_corr.isChecked() is True:
+            self.state.reference_event.set()
+        else:
+            self.state.reference_event.clear()
+
         if self.state.saving:
             self.state.end_experiment(force=True)
             self.set_saving()
@@ -85,6 +92,8 @@ class ExperimentControl(QWidget):
             self.state.pause_after = self.chk_pause.isChecked()
             if self.state.start_experiment():
                 self.set_notsaving()
+
+
 
     def set_locationbutton(self):
         pathtext = self.state.experiment_settings.save_dir
@@ -187,6 +196,16 @@ class ScanningWidget(QWidget):
         self.update_button()
 
 
+class ReferenceWidget(QWidget):
+    def __init__(self, state: ExperimentState):
+        self.state = state
+        super().__init__()
+        self.reference_layout = QVBoxLayout()
+        self.reference_settings_gui = ParameterGui(self.state.reference_settings)
+        self.reference_layout.addWidget(self.reference_settings_gui)
+        self.setLayout(self.reference_layout)
+
+
 class TwopViewer(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -199,12 +218,17 @@ class TwopViewer(QMainWindow):
 
         self.scanning_widget = ScanningWidget(self.state)
         self.experiment_widget = ExperimentControl(self.state)
+        self.reference_widget = ReferenceWidget(self.state)
 
-        self.motor_control_slider = MotionControlXYZ(self.state.motors)
+        self.motor_control_slider = MotionControlXYZ(self.state.input_queues, self.state.output_queues)
 
         self.addDockWidget(
             Qt.LeftDockWidgetArea,
             DockedWidget(widget=self.scanning_widget, title="Scanning settings"),
+        )
+        self.addDockWidget(
+            Qt.LeftDockWidgetArea,
+            DockedWidget(widget=self.reference_widget, title="Reference settings"),
         )
         self.addDockWidget(
             Qt.RightDockWidgetArea,
