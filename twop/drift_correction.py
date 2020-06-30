@@ -101,9 +101,8 @@ class Corrector(Process):
         self.mov_type = MovementType(False)
 
         self.reference = None
-        pix_millimeter = self.calculate_fov()
-        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_params.dz]  #x,y,z cal vect
         self.reference_params = None
+        self.calibration_vector = None
 
     def run(self):
         while True:
@@ -142,7 +141,8 @@ class Corrector(Process):
         return vector
 
     def exp_loop(self):
-        self.calibration_vector = [1, 1, self.reference_params.dz.value / 1000]
+        pix_millimeter = self.calculate_fov()
+        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_params.dz]  # x,y,z cal vect
         while not self.stop_event.is_set():
             number_of_frames = 0
             frame_container = []

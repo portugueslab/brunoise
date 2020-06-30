@@ -50,9 +50,9 @@ class MotorMaster(Process):
                 empty_queue = True
 
             if empty_queue is False:
-                if mov_type is "relative":
+                if mov_type == "relative":
                     self.motors[axis].move_rel(mov_value)
-                elif mov_type is "absolute":
+                elif mov_type == "absolute":
                     self.motors[axis].move_abs(mov_value)
 
     @staticmethod
