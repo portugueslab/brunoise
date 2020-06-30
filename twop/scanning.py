@@ -60,7 +60,7 @@ def compute_waveform(sp: ScanningParameters):
 
 
 class Scanner(Process):
-    def __init__(self, experiment_start_event, duration_queue, max_queuesize=200):
+    def __init__(self, experiment_start_event, duration_queue, max_queuesize=200, correction=None):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
         self.parameter_queue = Queue()

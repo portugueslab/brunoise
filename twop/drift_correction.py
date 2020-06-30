@@ -3,6 +3,8 @@ import numpy as np
 from lightparam.param_qt import ParametrizedQt
 from lightparam import Param
 from skimage.feature import register_translation
+import flammkuchen as fl
+from matplotlib import Path
 from queue import Empty
 from dataclasses import dataclass
 from time import sleep
@@ -63,7 +65,7 @@ class Corrector(Process):
     def __init__(self, reference_event, experiment_start_event, stop_event, correction_event,
                  reference_queue, scanning_parameters,
                  scanning_parameters_queue, data_queue,
-                 input_commands_queues, output_positions_queues):
+                 input_commands_queues, output_positions_queues, save_param):
         super().__init__()
         # communication with other processes, active during acquisition of the reference
         self.reference_event = reference_event
@@ -90,6 +92,8 @@ class Corrector(Process):
         # queue for the communication with the master motor class (in a separate process),
         # this is for read the last position
         self.output_positions_queues = output_positions_queues
+        # to know the directory where the anatomy/reference will be saved
+        self.save_parameters = save_param
 
         self.x_pos = None
         self.y_pos = None
@@ -97,7 +101,8 @@ class Corrector(Process):
         self.mov_type = MovementType(False)
 
         self.reference = None
-        self.calibration_vector = [] #x,y,z cal vect
+        pix_millimeter = self.calculate_fov()
+        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_params.dz]  #x,y,z cal vect
         self.reference_params = None
 
     def run(self):
@@ -115,6 +120,7 @@ class Corrector(Process):
 
     def reference_loop(self):
         stack_4d = self.get_next_entry(self.reference_queue)
+        self.save_reference(stack_4d)
         self.reference = self.reference_processing(stack_4d)
         print(self.reference.shape)
         self.end_ref_acquisition()
@@ -125,7 +131,7 @@ class Corrector(Process):
         planes = np.size(self.reference, 0)
         for i in range(planes):
             ref_im = np.squeeze(self.reference[i, :, :])
-            output = None # register_translation(ref_im, test_image)
+            output = register_translation(ref_im, test_image)
             vectors.append(output[0])
             errors.append(output[1])
         ind = errors.index(min(errors))
@@ -228,8 +234,18 @@ class Corrector(Process):
             self.scanning_parameters = new_params
 
     def calculate_fov(self):
-        # calculate pix per microns
+        # calculate pix per millimeters
         # formula: width FOV (microns) = 167.789 * Voltage
         conv_fact = 167.789
         w_fov = conv_fact * self.scanning_parameters.voltage_x
-        return self.scanning_parameters.n_x / w_fov
+        return (self.scanning_parameters.n_x / w_fov) / 1000
+
+    def save_reference(self, raw_reference):
+        n_planes = self.reference.shape[1]
+        for plane in range(n_planes):
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "anatomy/{:04d}.h5".format(plane),
+                {"stack_4D": raw_reference[:, plane, :, :]},
+                compression="blosc",
+            )
