@@ -250,6 +250,7 @@ class Scanner(Process):
                 self.setup_tasks(read_task, write_task, shutter_task)
                 if self.scanning_parameters.reset_shutter or toggle_shutter:
                     self.toggle_shutter(shutter_task)
+                    pass
                 if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
                     self.pause_loop()
                 else:
