@@ -42,6 +42,7 @@ class StackSaver(Process):
         self.dtype = np.float32
         self.ref_event = ref_event
         self.ref_queue = ref_queue
+        self.reference_param_queue = Queue()
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -52,14 +53,28 @@ class StackSaver(Process):
 
     def save_loop(self):
         # remove files if some are found at the save location
-        if (
-            Path(self.save_parameters.output_dir) / "original" / "stack_metadata.json"
-        ).is_file():
-            shutil.rmtree(Path(self.save_parameters.output_dir) / "original")
+        if not self.ref_event.is_set():
+            if (
+                Path(self.save_parameters.output_dir) / "original" / "stack_metadata.json"
+            ).is_file():
+                shutil.rmtree(Path(self.save_parameters.output_dir) / "original")
 
-        (Path(self.save_parameters.output_dir) / "original").mkdir(
-            parents=True, exist_ok=True
-        )
+            (Path(self.save_parameters.output_dir) / "original").mkdir(
+                parents=True, exist_ok=True
+            )
+        else:
+            if (
+                    Path(self.save_parameters.output_dir) / "anatomy" / "stack_metadata.json"
+            ).is_file():
+                shutil.rmtree(Path(self.save_parameters.output_dir) / "anatomy")
+
+            (Path(self.save_parameters.output_dir) / "anatomy").mkdir(
+                parents=True, exist_ok=True
+            )
+            # corrected_n_planes = (self.reference_param_queue.get(timeout=0.001)).n_planes
+            # self.save_parameters.n_z = corrected_n_planes
+            print("new n planes", self.save_parameters.n_z)
+
         i_received = 0
         self.i_in_plane = 0
         self.i_block = 0
@@ -68,6 +83,7 @@ class StackSaver(Process):
             dtype=self.dtype,
         )
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
+        print("total number of frames", self.save_parameters.n_z)
         while (
             i_received < n_total
             and self.saving_signal.is_set()

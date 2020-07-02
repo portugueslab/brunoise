@@ -49,6 +49,7 @@ class ExperimentControl(QWidget):
         self.set_locationbutton()
         self.save_location_button.clicked.connect(self.set_save_location)
         self.startstop_button = QPushButton()
+        self.reference_button = QPushButton()
         self.set_saving()
         self.chk_pause = QCheckBox("Pause after experiment")
         self.stack_progress = QProgressBar()
@@ -56,11 +57,13 @@ class ExperimentControl(QWidget):
         self.plane_progress.setFormat("Frame %v of %m")
         self.stack_progress.setFormat("Plane %v of %m")
         self.startstop_button.clicked.connect(self.toggle_start)
+        self.reference_button.clicked.connect(self.toggle_reference)
 
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.experiment_settings_gui)
         self.layout().addWidget(self.save_location_button)
         self.layout().addWidget(self.startstop_button)
+        self.layout().addWidget(self.reference_button)
         self.layout().addWidget(self.chk_pause)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
@@ -70,9 +73,20 @@ class ExperimentControl(QWidget):
         self.startstop_button.setStyleSheet(
             "background-color:#1d824f; border-color:#1c9e66"
         )
+        self.reference_button.setText("Start anatomy")
+        self.reference_button.setStyleSheet(
+            "background-color:#1d824f; border-color:#1c9e66"
+        )
+
 
     def set_notsaving(self):
         self.startstop_button.setText("Stop recording")
+        self.startstop_button.setStyleSheet(
+            "background-color:#82271d; border-color:#9e391c"
+        )
+
+    def set_ongoing(self):
+        self.startstop_button.setText("Stop anatomy")
         self.startstop_button.setStyleSheet(
             "background-color:#82271d; border-color:#9e391c"
         )
@@ -85,6 +99,14 @@ class ExperimentControl(QWidget):
             self.state.pause_after = self.chk_pause.isChecked()
             if self.state.start_experiment():
                 self.set_notsaving()
+
+    def toggle_reference(self):
+        if not self.state.reference_event.is_set():
+            self.set_ongoing()
+            self.state.reference_event.set()
+            self.toggle_start()
+        else:
+            self.state.reference_event.clear()
 
     def set_locationbutton(self):
         pathtext = self.state.experiment_settings.save_dir
@@ -214,6 +236,10 @@ class TwopViewer(QMainWindow):
         self.addDockWidget(
             Qt.LeftDockWidgetArea,
             DockedWidget(widget=self.scanning_widget, title="Scanning settings"),
+        )
+        self.addDockWidget(
+            Qt.LeftDockWidgetArea,
+            DockedWidget(widget=self.reference_widget, title="Reference settings"),
         )
         self.addDockWidget(
             Qt.RightDockWidgetArea,
