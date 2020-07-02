@@ -25,7 +25,7 @@ class SavingStatus:
 
 
 class StackSaver(Process):
-    def __init__(self, stop_signal, data_queue, n_frames_queue):
+    def __init__(self, stop_signal, data_queue, n_frames_queue, ref_event, ref_queue):
         super().__init__()
         self.stop_signal = stop_signal
         self.data_queue = data_queue
@@ -37,8 +37,11 @@ class StackSaver(Process):
         self.i_in_plane = 0
         self.i_block = 0
         self.current_data = None
+        self.reference = None
         self.saved_status_queue = Queue()
         self.dtype = np.float32
+        self.ref_event = ref_event
+        self.ref_queue = ref_queue
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -144,12 +147,21 @@ class StackSaver(Process):
             )
 
     def complete_plane(self):
-        fl.save(
-            Path(self.save_parameters.output_dir)
-            / "original/{:04d}.h5".format(self.i_block),
-            {"stack_4D": self.current_data},
-            compression="blosc",
-        )
+        if not self.ref_event.is_set():
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "original/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data},
+                compression="blosc",
+            )
+        else:
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "anatomy/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data},
+                compression="blosc",
+            )
+            self.fill_reference()
         self.i_in_plane = 0
         self.i_block += 1
 
@@ -158,3 +170,17 @@ class StackSaver(Process):
             self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
         except Empty:
             pass
+
+    def fill_reference(self):
+        if self.i_block == 0:
+            self.reference = np.zeros((
+                int(self.save_parameters.n_t),
+                int(self.save_parameters.n_z),
+                self.current_data.shape[2],
+                self.current_data.shape[3]))
+        self.reference[:, self.i_block, :, :] = self.current_data[:, 0, :, :]
+        if self.i_block == self.save_parameters.n_z - 1:
+            self.send_reference()
+
+    def send_reference(self):
+        self.ref_queue.put(self.reference)

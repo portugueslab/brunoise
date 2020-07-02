@@ -186,7 +186,15 @@ class ScanningWidget(QWidget):
             self.state.pause_scanning()
         self.update_button()
 
-
+class ReferenceWidget(QWidget):
+    def __init__(self, state: ExperimentState):
+        self.state = state
+        super().__init__()
+        self.reference_layout = QVBoxLayout()
+        self.referece_settings_gui = ParameterGui(self.state.reference_settings)
+        self.reference_layout.addWidget(self.referece_settings_gui)
+        self.setLayout(self.reference_layout
+                       )
 class TwopViewer(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -199,6 +207,7 @@ class TwopViewer(QMainWindow):
 
         self.scanning_widget = ScanningWidget(self.state)
         self.experiment_widget = ExperimentControl(self.state)
+        self.reference_widget = ReferenceWidget(self.state)
 
         self.motor_control_slider = MotionControlXYZ(self.state.motors)
 
