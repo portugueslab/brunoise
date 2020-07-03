@@ -86,8 +86,8 @@ class ExperimentControl(QWidget):
         )
 
     def set_ongoing(self):
-        self.startstop_button.setText("Stop anatomy")
-        self.startstop_button.setStyleSheet(
+        self.reference_button.setText("Stop anatomy")
+        self.reference_button.setStyleSheet(
             "background-color:#82271d; border-color:#9e391c"
         )
 
@@ -105,8 +105,6 @@ class ExperimentControl(QWidget):
             self.set_ongoing()
             self.state.reference_event.set()
             self.toggle_start()
-        else:
-            self.state.reference_event.clear()
 
     def set_locationbutton(self):
         pathtext = self.state.experiment_settings.save_dir

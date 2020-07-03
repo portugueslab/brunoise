@@ -231,6 +231,7 @@ class ExperimentState(QObject):
             if self.reference_event.is_set():
                 self.move_stage_reference(first=False)
                 self.reference_event.clear()
+                print("ref event clear")
             if self.pause_after:
                 self.pause_scanning()
             else:
