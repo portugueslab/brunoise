@@ -126,14 +126,12 @@ class MotorSlider(QWidget):
     def update_values(self, new_val):
         self.spin_val_desired_pos.setValue(new_val)
         displacement = new_val - self.position
-        print("update_values", displacement)
         self.input_queue.put((displacement, self.mov_type))
 
     def update_slider(self, new_val):
         self.slider.pos = new_val
         self.slider.update()
         displacement = new_val - self.position
-        print("update_slider", displacement)
         self.input_queue.put((displacement, self.mov_type))
 
     def update_external(self, new_val):

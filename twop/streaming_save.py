@@ -43,6 +43,7 @@ class StackSaver(Process):
         self.ref_event = ref_event
         self.ref_queue = ref_queue
         self.reference_param_queue = Queue()
+        self.z_start = None
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -133,32 +134,65 @@ class StackSaver(Process):
             self.complete_plane()
 
     def finalize_dataset(self):
-        with open(
-            (
-                Path(self.save_parameters.output_dir)
-                / "original"
-                / "stack_metadata.json"
-            ),
-            "w",
-        ) as f:
-            json.dump(
-                {
-                    "shape_full": (
-                        self.save_parameters.n_t,
-                        self.i_block,
-                        *self.current_data.shape[2:],
-                    ),
-                    "shape_block": (
-                        self.save_parameters.n_t,
-                        1,
-                        *self.current_data.shape[2:],
-                    ),
-                    "crop_start": [0, 0, 0, 0],
-                    "crop_end": [0, 0, 0, 0],
-                    "padding": [0, 0, 0, 0],
-                },
-                f,
-            )
+        if not self.ref_event.is_set():
+            with open(
+                (
+                    Path(self.save_parameters.output_dir)
+                    / "original"
+                    / "stack_metadata.json"
+                ),
+                "w",
+            ) as f:
+                json.dump(
+                    {
+                        "shape_full": (
+                            self.save_parameters.n_t,
+                            self.i_block,
+                            *self.current_data.shape[2:],
+                        ),
+                        "shape_block": (
+                            self.save_parameters.n_t,
+                            1,
+                            *self.current_data.shape[2:],
+                        ),
+                        "crop_start": [0, 0, 0, 0],
+                        "crop_end": [0, 0, 0, 0],
+                        "padding": [0, 0, 0, 0],
+                    },
+                    f,
+                )
+        else:
+            ref_params = self.reference_param_queue.get(timeout=0.001)
+            with open(
+                (
+                    Path(self.save_parameters.output_dir)
+                    / "anatomy"
+                    / "reference_metadata.json"
+                ),
+                "w",
+            ) as f:
+                json.dump(
+                    {
+                        "shape_full": (
+                            self.save_parameters.n_t,
+                            self.i_block,
+                            *self.current_data.shape[2:],
+                        ),
+                        "shape_block": (
+                            self.save_parameters.n_t,
+                            1,
+                            *self.current_data.shape[2:],
+                        ),
+                        "crop_start": [0, 0, 0, 0],
+                        "crop_end": [0, 0, 0, 0],
+                        "padding": [0, 0, 0, 0],
+                        "top_z": self.z_start,
+                        "extra_planes": ref_params.extra_planes,
+                        "dz": ref_params.dz
+
+                    },
+                    f,
+                )
 
     def complete_plane(self):
         if not self.ref_event.is_set():
@@ -175,7 +209,6 @@ class StackSaver(Process):
                 {"stack_4D": self.current_data},
                 compression="blosc",
             )
-            self.fill_reference()
         self.i_in_plane = 0
         self.i_block += 1
 
@@ -185,16 +218,3 @@ class StackSaver(Process):
         except Empty:
             pass
 
-    def fill_reference(self):
-        if self.i_block == 0:
-            self.reference = np.zeros((
-                int(self.save_parameters.n_t),
-                int(self.save_parameters.n_z),
-                self.current_data.shape[2],
-                self.current_data.shape[3]))
-        self.reference[:, self.i_block, :, :] = self.current_data[:, 0, :, :]
-        if self.i_block == self.save_parameters.n_z - 1:
-            self.send_reference()
-
-    def send_reference(self):
-        self.ref_queue.put(self.reference)

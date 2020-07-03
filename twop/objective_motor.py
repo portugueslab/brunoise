@@ -185,6 +185,7 @@ class MotorControl:
             encoding=self.encoding, timeout=10
         )
         self.start_session()
+        print(self.axes, "done")
 
     @staticmethod
     def find_axis(axes):

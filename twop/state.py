@@ -24,6 +24,8 @@ from sequence_diagram import SequenceDiagram
 from dataclasses import dataclass
 from twop.objective_motor_sliders import MovementType
 from twop.objective_motor import MotorMaster, MotorControl
+from twop.drift_correction import Corrector
+
 
 class ReferenceSettings(ParametrizedQt):
     def __init__(self):
@@ -184,6 +186,11 @@ class ExperimentState(QObject):
             self.motors[axis] = MotorControl("COM6", axis=axis)
         self.master_motor = MotorMaster(self.motors, self.input_queues,
                                         self.output_queues, self.close_setup_event)
+        # self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
+        #                            self.correction_event, self.saver.ref_queue, self.scanner.scanning_parameters,
+        #                            self.scanner.corrector_queue, self.scanner.data_queue_copy,
+        #                            self.input_queues, self.output_queues, self.saver.save_parameters
+        #                            )
         self.power_controller = LaserPowerControl()
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
@@ -193,6 +200,7 @@ class ExperimentState(QObject):
         self.reconstructor.start()
         self.master_motor.start()
         self.saver.start()
+        # self.corrector.start()
         self.open_setup()
 
         self.paused = False
@@ -221,10 +229,12 @@ class ExperimentState(QObject):
         params_to_send.scanning_state = ScanningState.EXPERIMENT_RUNNING
         self.scanner.parameter_queue.put(params_to_send)
         if first_plane:
+            z = self.output_queues["z"].get(timeout=0.001)
+            self.saver.z_start = z
+            print("beginning acq", z)
             self.send_save_params()
             self.saver.saving_signal.set()
         self.experiment_start_event.set()
-        print("start experiment with duration of", duration)
         return True
 
     def end_experiment(self, force=False):
@@ -258,7 +268,7 @@ class ExperimentState(QObject):
         self.paused = True
 
     def advance_plane(self):
-        self.motors["z"].move_rel(self.experiment_settings.dz / 1000)
+        self.input_queues["z"].put((self.experiment_settings.dz / 1000, self.move_type))
         print("plane advanced by by", self.experiment_settings.dz)
         sleep(0.2)
         self.start_experiment(first_plane=False)
@@ -270,7 +280,7 @@ class ExperimentState(QObject):
             mic_to_move = - (self.reference_params.extra_planes +
                              self.experiment_settings.n_planes - 1) * self.experiment_settings.dz
         print("moving stage up by", mic_to_move)
-        self.motors["z"].move_rel(mic_to_move / 1000)
+        self.input_queues["z"].put((mic_to_move / 1000, self.move_type))
         sleep(0.2)
 
     def close_setup(self):
@@ -326,12 +336,13 @@ class ExperimentState(QObject):
 
     def send_reference_params(self):
         param_to_send = convert_reference_params(self.reference_settings)
+        self.reference_params = param_to_send
         if self.reference_event.is_set():
             n_planes = (self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes
         else:
             n_planes = self.experiment_settings.n_planes
         param_to_send.n_planes = n_planes
-        self.reference_params = param_to_send
+        param_to_send.dz = self.experiment_settings.dz
         self.saver.reference_param_queue.put(param_to_send)
 
     def get_save_status(self) -> Optional[SavingStatus]:
