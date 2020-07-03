@@ -200,7 +200,7 @@ class TwopViewer(QMainWindow):
         self.scanning_widget = ScanningWidget(self.state)
         self.experiment_widget = ExperimentControl(self.state)
 
-        self.motor_control_slider = MotionControlXYZ(self.state.motors)
+        self.motor_control_slider = MotionControlXYZ(self.state.input_queues, self.state.output_queues)
 
         self.addDockWidget(
             Qt.LeftDockWidgetArea,

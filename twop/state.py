@@ -21,7 +21,8 @@ from typing import Optional
 from enum import Enum
 from time import sleep
 from sequence_diagram import SequenceDiagram
-
+from twop.objective_motor_sliders import MovementType
+from twop.objective_motor import MotorMaster, MotorControl
 
 class ExperimentSettings(ParametrizedQt):
     def __init__(self):
@@ -130,15 +131,21 @@ class ExperimentState(QObject):
         )
         self.save_status: Optional[SavingStatus] = None
 
+        self.input_queues = {"x": Queue(), "y": Queue(), "z": Queue()}
+        self.output_queues = {"x": Queue(), "y": Queue(), "z": Queue()}  # not sure can be done with queue class
+        self.close_setup_event = Event()
+        self.move_type = MovementType(False)
         self.motors = dict()
-        self.motors["x"] = MotorControl("COM6", axes="x")
-        self.motors["y"] = MotorControl("COM6", axes="y")
-        self.motors["z"] = MotorControl("COM6", axes="z")
+        for axis in ["x", "y", "z"]:
+            self.motors[axis] = MotorControl("COM6", axis=axis)
+        self.master_motor = MotorMaster(self.motors, self.input_queues,
+                                        self.output_queues, self.close_setup_event)
         self.power_controller = LaserPowerControl()
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
         self.scanner.start()
         self.reconstructor.start()
+        self.master_motor.start()
         self.saver.start()
         self.open_setup()
 
@@ -200,8 +207,7 @@ class ExperimentState(QObject):
         end all parallel processes, close all communication channels
 
         """
-        for motor in self.motors.values():
-            motor.end_session()
+        self.close_setup_event.set()
         self.power_controller.terminate_connection()
         self.scanner.stop_event.set()
         self.end_event.set()
@@ -245,3 +251,5 @@ class ExperimentState(QObject):
         except Empty:
             pass
         return None
+
+
