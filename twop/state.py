@@ -223,11 +223,13 @@ class ExperimentState(QObject):
 
     def end_experiment(self, force=False):
         self.experiment_start_event.clear()
-
+        print("end exp", self.save_status.i_z, "/", self.save_status.target_params.n_z)
         if not force and self.save_status.i_z + 1 < self.save_status.target_params.n_z:
             self.advance_plane()
         else:
             self.saver.saving_signal.clear()
+            self.save_status.i_z = 0
+            self.save_status.i_t = 0
             if self.reference_event.is_set():
                 self.move_stage_reference(first=False)
                 self.reference_event.clear()

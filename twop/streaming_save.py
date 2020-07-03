@@ -71,9 +71,6 @@ class StackSaver(Process):
             (Path(self.save_parameters.output_dir) / "anatomy").mkdir(
                 parents=True, exist_ok=True
             )
-            # corrected_n_planes = (self.reference_param_queue.get(timeout=0.001)).n_planes
-            # self.save_parameters.n_z = corrected_n_planes
-            print("new n planes", self.save_parameters.n_z)
 
         i_received = 0
         self.i_in_plane = 0
@@ -93,6 +90,7 @@ class StackSaver(Process):
             try:
                 self.update_n_t(self.n_frames_queue.get(timeout=0.001))
                 n_total = self.save_parameters.n_t * self.save_parameters.n_z
+                print(n_total)
             except Empty:
                 pass
             try:
