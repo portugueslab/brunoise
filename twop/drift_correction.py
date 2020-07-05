@@ -12,8 +12,7 @@ from scipy.ndimage.filters import gaussian_filter
 from twop.objective_motor_sliders import MovementType
 from scipy.signal import convolve
 from twop.objective_motor_sliders import get_next_entry
-
-
+import json
 class ReferenceSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
@@ -24,8 +23,7 @@ class ReferenceSettings(ParametrizedQt):
         self.xy_th = Param(5.0, (0.1, 20.0), unit="um")
         self.z_th = Param(self.dz, (self.dz, self.dz * 4), unit="um")
         self.n_frames_exp = Param(5, (1, 500))
-        self.size_k = Param(0, (0, 100))
-        self.sigma_k = Param(2, (1, 10))
+        self.blur_kernel = Param(5, (0, 100))
 
 
 
@@ -56,7 +54,7 @@ class Corrector(Process):
     def __init__(self, reference_event, experiment_start_event, stop_event, correction_event,
                  reference_queue, scanning_parameters,
                  scanning_parameters_queue, data_queue,
-                 input_commands_queues, output_positions_queues, save_param):
+                 input_commands_queues, output_positions_queues, save_param_queue):
         super().__init__()
         # communication with other processes, active during acquisition of the reference
         self.reference_event = reference_event
@@ -84,43 +82,33 @@ class Corrector(Process):
         # this is for read the last position
         self.output_positions_queues = output_positions_queues
         # to know the directory where the anatomy/reference will be saved
-        self.save_parameters = save_param
+        self.save_parameters_queue = save_param_queue
+        self.save_parameters = None
 
         self.x_pos = None
         self.y_pos = None
         self.z_pos = None
         self.mov_type = MovementType(False)
+        self.desired_plane = None
 
         self.reference = None
         self.reference_params = None
+        self.reference_acq_params = None
         self.calibration_vector = None
 
     def run(self):
         while True:
             self.update_settings()
-            if self.reference_event.is_set() and self.experiment_start_event.is_set():
-                self.start_ref_acquisition()
-                self.reference_loop()
-                self.reference_event.clear()
-
-            elif not self.reference_event.is_set() and self.experiment_start_event.is_set():
-                self.correction_event.set()
+            self.receive_save_parameters()
+            if self.correction_event.is_set() and self.experiment_start_event.is_set():
                 self.exp_loop()
-                self.correction_event.clear()
-
-    def reference_loop(self):
-        stack_4d = self.get_next_entry(self.reference_queue)
-        self.save_reference(stack_4d)
-        self.reference = self.reference_processing(stack_4d)
-        print(self.reference.shape)
-        self.end_ref_acquisition()
 
     def compute_registration(self, test_image):
         vectors = []
         errors = []
         planes = np.size(self.reference, 0)
         for i in range(planes):
-            ref_im = np.squeeze(self.reference[i, :, :])
+            ref_im = self.reference[i, :, :]
             output = register_translation(ref_im, test_image)
             vectors.append(output[0])
             errors.append(output[1])
@@ -133,8 +121,8 @@ class Corrector(Process):
 
     def exp_loop(self):
         pix_millimeter = self.calculate_fov()
-        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_params.dz]  # x,y,z cal vect
-        while not self.stop_event.is_set():
+        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_acq_params.dz]  # x,y,z cal vect
+        while not self.stop_event.is_set() or self.correction_event.is_set():
             number_of_frames = 0
             frame_container = []
             while number_of_frames == self.reference_params.n_frames_exp:
@@ -148,36 +136,20 @@ class Corrector(Process):
                 vector = self.compute_registration(frame)
                 self.apply_correction(vector)
 
-    def start_ref_acquisition(self):
-        self.x_pos = self.get_last_entry(self.output_positions_queues["x"])
-        self.y_pos = self.get_last_entry(self.output_positions_queues["y"])
-        self.z_pos = self.get_last_entry(self.output_positions_queues["z"])
-        # self.reference_params.n_planes = self.reference_params.n_planes + 1
-        up_planes = self.reference_params.extra_planes
-        distance = (self.reference_params.dz / 1000) * up_planes
-        self.input_commands_queues["z"].put((distance, self.mov_type))
-        sleep(0.2)
-
-    def end_ref_acquisition(self):
-        self.input_commands_queues["z"].put((self.z_pos, self.mov_type))
-
     def real_units(self, raw_vector):
         vector = np.multiply(raw_vector, self.calibration_vector)
         return vector
 
     def apply_correction(self, vector):
-        self.input_commands_queues["x"].put((vector[1], self.mov_type))
-        self.input_commands_queues["y"].put((vector[0], self.mov_type))
-        self.input_commands_queues["z"].put((vector[2], self.mov_type))
+        print("x corrected by", vector[1])
+        print("y corrected by", vector[0])
+        print("z corrected by", vector[2])
+        # self.input_commands_queues["x"].put((vector[1], self.mov_type))
+        # self.input_commands_queues["y"].put((vector[0], self.mov_type))
+        # self.input_commands_queues["z"].put((vector[2], self.mov_type))
 
     def reference_processing(self, input_ref):
-        output_ref = np.mean(input_ref, axis=0)
-        size_kernel = self.reference_params.size_k
-        sigma = self.reference_params.sigma_k
-        if size_kernel != 0:
-            kernel = self.gaussian_kernel((size_kernel,)*3, sigma=sigma)
-            output_ref = convolve(output_ref, kernel, mode='same')
-        return output_ref
+        return gaussian_filter(input_ref, self.reference_params.size_k, mode='same')
 
     @staticmethod
     def frame_processing(frame_container):
@@ -206,3 +178,24 @@ class Corrector(Process):
         conv_fact = 167.789
         w_fov = conv_fact * self.scanning_parameters.voltage_x
         return (self.scanning_parameters.n_x / w_fov) / 1000
+
+    def load_reference(self):
+        ref_path = Path(self.save_parameters.output_dir / "anatomy")
+        meta_files = sorted(ref_path.glob("*metadata"))
+        with open(str(meta_files[0])) as json_file:
+            self.reference_acq_params = json.load(json_file)
+        ref_files = sorted(ref_path.glob("*.h5"))
+        raw_reference = np.zeros(len(ref_files),
+                                self.reference_acq_params["shape_full"][2],
+                                self.reference_acq_params["shape_full"][3])
+        for n, plane_file in enumerate(ref_files):
+            raw_reference[n, :, :] = fl.load(str(plane_file))
+        self.reference = self.reference_processing(raw_reference)
+        self.desired_plane = self.reference_acq_params["extra_planes"]
+        self.correction_event.set()
+
+    def receive_save_parameters(self):
+        try:
+            self.save_parameters = self.save_parameters_queue.get(timeout=0.001)
+        except Empty:
+            pass

@@ -52,12 +52,14 @@ class ExperimentControl(QWidget):
         self.reference_button = QPushButton()
         self.set_saving()
         self.chk_pause = QCheckBox("Pause after experiment")
+        self.drift_corr_checkbox = QCheckBox("Drift Correction")
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
         self.plane_progress.setFormat("Frame %v of %m")
         self.stack_progress.setFormat("Plane %v of %m")
         self.startstop_button.clicked.connect(self.toggle_start)
         self.reference_button.clicked.connect(self.toggle_reference)
+        self.drift_corr_checkbox.clicked.connect(self.check_df)
 
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.experiment_settings_gui)
@@ -65,6 +67,7 @@ class ExperimentControl(QWidget):
         self.layout().addWidget(self.startstop_button)
         self.layout().addWidget(self.reference_button)
         self.layout().addWidget(self.chk_pause)
+        self.layout().addWidget(self.drift_corr_checkbox)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
 
@@ -99,6 +102,14 @@ class ExperimentControl(QWidget):
             self.state.pause_after = self.chk_pause.isChecked()
             if self.state.start_experiment():
                 self.set_notsaving()
+
+    def check_df(self):
+        if self.drift_corr_checkbox.isChecked():
+            self.state.correction_event.set()
+            self.state.corrector.load_reference()
+        else:
+            self.state.correction_event.clear()
+
 
     def toggle_reference(self):
         if not self.state.reference_event.is_set():

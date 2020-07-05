@@ -91,7 +91,6 @@ class StackSaver(Process):
             try:
                 self.update_n_t(self.n_frames_queue.get(timeout=0.001))
                 n_total = self.save_parameters.n_t * self.save_parameters.n_z
-                print(n_total)
             except Empty:
                 pass
             try:
@@ -162,6 +161,7 @@ class StackSaver(Process):
                     f,
                 )
         else:
+            print("saver")
             ref_params = self.reference_param_queue.get(timeout=0.001)
             with open(
                 (
@@ -206,7 +206,7 @@ class StackSaver(Process):
             fl.save(
                 Path(self.save_parameters.output_dir)
                 / "anatomy/{:04d}.h5".format(self.i_block),
-                {"stack_4D": self.current_data},
+                {"plane": np.mean(self.current_data, (0, 1))},
                 compression="blosc",
             )
         self.i_in_plane = 0

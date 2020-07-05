@@ -160,8 +160,10 @@ class ExperimentState(QObject):
         self.end_event = Event()
         self.external_sync = ZMQcomm()
         self.duration_queue = Queue()
+        self.correction_event = Event()
         self.scanner = Scanner(
-            self.experiment_start_event, duration_queue=self.duration_queue
+            self.experiment_start_event, duration_queue=self.duration_queue,
+            correction=self.correction_event
         )
         self.scanning_parameters = None
         self.reconstructor = ImageReconstructor(
@@ -186,11 +188,11 @@ class ExperimentState(QObject):
             self.motors[axis] = MotorControl("COM6", axis=axis)
         self.master_motor = MotorMaster(self.motors, self.input_queues,
                                         self.output_queues, self.close_setup_event)
-        # self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
-        #                            self.correction_event, self.saver.ref_queue, self.scanner.scanning_parameters,
-        #                            self.scanner.corrector_queue, self.scanner.data_queue_copy,
-        #                            self.input_queues, self.output_queues, self.saver.save_parameters
-        #                            )
+        self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
+                                   self.correction_event, self.saver.ref_queue, self.scanner.scanning_parameters,
+                                   self.scanner.corrector_queue, self.scanner.data_queue_copy,
+                                   self.input_queues, self.output_queues, self.saver.saving_parameter_queue
+                                   )
         self.power_controller = LaserPowerControl()
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
@@ -200,7 +202,7 @@ class ExperimentState(QObject):
         self.reconstructor.start()
         self.master_motor.start()
         self.saver.start()
-        # self.corrector.start()
+        self.corrector.start()
         self.open_setup()
 
         self.paused = False
@@ -230,8 +232,8 @@ class ExperimentState(QObject):
         self.scanner.parameter_queue.put(params_to_send)
         if first_plane:
             z = self.output_queues["z"].get(timeout=0.001)
+            print("state")
             self.saver.z_start = z
-            print("beginning acq", z)
             self.send_save_params()
             self.saver.saving_signal.set()
         self.experiment_start_event.set()
