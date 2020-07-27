@@ -162,7 +162,6 @@ class StackSaver(Process):
                     f,
                 )
         else:
-            print("saver")
             ref_params = self.reference_param_queue.get(timeout=0.001)
             with open(
                 (

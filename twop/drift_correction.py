@@ -3,6 +3,7 @@ import numpy as np
 from lightparam.param_qt import ParametrizedQt
 from lightparam import Param
 from skimage.feature import register_translation
+# from skimage.registration import phase_cross_correlation
 import flammkuchen as fl
 from matplotlib import Path
 from queue import Empty
@@ -13,6 +14,8 @@ from twop.objective_motor_sliders import MovementType
 from scipy.signal import convolve
 from twop.objective_motor_sliders import get_next_entry
 import json
+from time import sleep
+
 class ReferenceSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
@@ -54,7 +57,8 @@ class Corrector(Process):
     def __init__(self, reference_event, experiment_start_event, stop_event, correction_pre_event, correction_event,
                  reference_queue, scanning_parameters,
                  scanning_parameters_queue, data_queue,
-                 input_commands_queues, output_positions_queues, save_param_queue_drift):
+                 input_commands_queues, output_positions_queues, save_param_queue_drift,
+                 reference_param_queue_drift):
         super().__init__()
         # communication with other processes, active during acquisition of the reference
         self.reference_event = reference_event
@@ -71,7 +75,7 @@ class Corrector(Process):
         # queue for the acquisition of the reference, planes are sent by the saver
         self.reference_queue = reference_queue
         # queue in order to know the latest settings selected by the user such as n_planes, n_frames etc.
-        self.reference_param_queue = Queue()
+        self.reference_param_queue_drift = reference_param_queue_drift
         # queue in order to know the latest scanning settings, for n_x and n_y
         self.scanning_parameters_queue = scanning_parameters_queue
         # initial scanning parameters
@@ -110,47 +114,49 @@ class Corrector(Process):
             if self.correction_event.is_set():
                 self.exp_loop()
 
-    def compute_registration(self, test_image):
+    def compute_registration(self, reference, test_image):
         vectors = []
         errors = []
-        planes = np.size(self.reference, 0)
+        planes = np.size(reference, 0)
         for i in range(planes):
-            ref_im = self.reference[i, :, :]
+            ref_im = reference[i, :, :]
             output = register_translation(ref_im, test_image)
             vectors.append(output[0])
             errors.append(output[1])
         ind = errors.index(min(errors))
         z_disp = ind - ((self.reference_params.n_planes - 1) / 2)
-        vector = vectors[ind]
-        np.append(vector, z_disp)
+        vector = [z_disp]
+        vector.extend(list(vectors[ind]))
         vector = self.real_units(vector)
         return vector
 
     def exp_loop(self):
         pix_millimeter = self.calculate_fov()
-        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_acq_params["dz"]]  # x,y,z cal vect
-        while not self.stop_event.is_set() or self.correction_event.is_set():
+        self.calibration_vector = [self.reference_acq_params["dz"], pix_millimeter, pix_millimeter]  # z, y ,x cal vect
+        while self.correction_event.is_set():
             number_of_frames = 0
             frame_container = []
-            while number_of_frames == self.reference_params.n_frames_exp:
+            while number_of_frames != self.reference_params.n_frames_exp:
+
                 try:
                     frame = self.data_queue.get(timeout=0.001)
                     frame_container.append(frame)
                     number_of_frames += 1
                 except Empty:
-                    frame_container = frame_container[-self.reference_params.n_frames_exp:]
-                frame = self.frame_processing(frame_container)
-                vector = self.compute_registration(frame)
-                self.apply_correction(vector)
+                    pass
+                    # frame_container = frame_container[-self.reference_params.n_frames_exp:]
+            frame = self.frame_processing(frame_container)
+            vector = self.compute_registration(self.reference, frame)
+            self.apply_correction(vector)
 
     def real_units(self, raw_vector):
         vector = np.multiply(raw_vector, self.calibration_vector)
         return vector
 
     def apply_correction(self, vector):
-        print("x corrected by", vector[1])
-        print("y corrected by", vector[0])
-        print("z corrected by", vector[2])
+        print("y corrected by", vector[1])
+        print("z corrected by", vector[0])
+        print("x corrected by", vector[2])
         # self.input_commands_queues["x"].put((vector[1], self.mov_type))
         # self.input_commands_queues["y"].put((vector[0], self.mov_type))
         # self.input_commands_queues["z"].put((vector[2], self.mov_type))
@@ -200,12 +206,16 @@ class Corrector(Process):
             raw_reference[n, :, :] = fl.load(str(plane_file))["plane"]
         # self.reference = self.reference_processing(raw_reference)
         self.reference = raw_reference
-        print("ref shape", raw_reference.shape)
         self.desired_plane = self.reference_acq_params["extra_planes"]
-        self.correction_event.set()
+        # self.correction_event.set()
 
     def receive_save_parameters(self):
         try:
             self.save_parameters = self.save_parameters_queue_drift.get(timeout=0.001)
+        except Empty:
+            pass
+
+        try:
+            self.reference_params = self.reference_param_queue_drift.get(timeout=0.001)
         except Empty:
             pass

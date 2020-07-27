@@ -167,13 +167,15 @@ class ExperimentState(QObject):
             correction=self.correction_event
         )
         self.scanning_parameters = None
+        self.frames_correction_queue = Queue()
         self.reconstructor = ImageReconstructor(
-            self.scanner.data_queue, self.scanner.stop_event
+            self.scanner.data_queue, self.scanner.stop_event, self.correction_event
         )
         self.save_queue = ArrayQueue(max_mbytes=800)
         self.reference_event = Event()
         self.reference_params = None
         self.reference_queue = ArrayQueue(max_mbytes=800)
+        self.reference_param_queue_drift = Queue()
         self.saver = StackSaver(
             self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue, self.reference_event,
             self.reference_queue
@@ -191,8 +193,9 @@ class ExperimentState(QObject):
                                         self.output_queues, self.close_setup_event)
         self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
                                    self.correction_pre_event, self.correction_event, self.saver.ref_queue, self.scanner.scanning_parameters,
-                                   self.scanner.corrector_queue, self.scanner.data_queue_copy,
-                                   self.input_queues, self.output_queues, self.saver.saving_parameter_queue_drift
+                                   self.scanner.corrector_queue, self.reconstructor.output_queue_corr,
+                                   self.input_queues, self.output_queues, self.saver.saving_parameter_queue_drift,
+                                   self.reference_param_queue_drift
                                    )
         self.power_controller = LaserPowerControl()
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
@@ -301,6 +304,7 @@ class ExperimentState(QObject):
     def get_image(self):
         try:
             image = -self.reconstructor.output_queue.get(timeout=0.001)
+
             if self.saver.saving_signal.is_set():
                 if (
                     self.save_status is not None
@@ -341,13 +345,11 @@ class ExperimentState(QObject):
     def send_reference_params(self):
         param_to_send = convert_reference_params(self.reference_settings)
         self.reference_params = param_to_send
-        if self.reference_event.is_set():
-            n_planes = (self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes
-        else:
-            n_planes = self.experiment_settings.n_planes
+        n_planes = (self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes
         param_to_send.n_planes = n_planes
         param_to_send.dz = self.experiment_settings.dz
         self.saver.reference_param_queue.put(param_to_send)
+        self.reference_param_queue_drift.put(param_to_send)
 
     def get_save_status(self) -> Optional[SavingStatus]:
         try:

@@ -56,7 +56,6 @@ class Scanner(Process):
     def __init__(self, experiment_start_event, duration_queue, max_queuesize=200, correction=None):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
-        self.data_queue_copy = ArrayQueue(max_mbytes=max_queuesize)
         self.parameter_queue = Queue()
         self.stop_event = Event()
         self.experiment_start_event = experiment_start_event
@@ -186,8 +185,6 @@ class Scanner(Process):
                 break
             data = self.read_buffer[0, :]
             self.data_queue.put(data)
-            if self.correction_event.is_set() and self.experiment_start_event.is_set():
-                self.data_queue_copy.put(data)
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
             try:
@@ -248,12 +245,14 @@ class Scanner(Process):
 
 
 class ImageReconstructor(Process):
-    def __init__(self, data_in_queue, stop_event, max_mbytes_queue=300):
+    def __init__(self, data_in_queue, stop_event, corr_event, max_mbytes_queue=300):
         super().__init__()
         self.data_in_queue = data_in_queue
         self.parameter_queue = Queue()
         self.stop_event = stop_event
         self.output_queue = ArrayQueue(max_mbytes_queue)
+        self.output_queue_corr = ArrayQueue(max_mbytes_queue)
+        self.correction_event = corr_event
         self.scanning_parameters = None
         self.waveform = None
 
@@ -275,5 +274,15 @@ class ImageReconstructor(Process):
                         self.scanning_parameters.n_bin,
                     )
                 )
+                if self.correction_event.is_set():
+                    self.output_queue_corr.clear()
+                    self.output_queue_corr.put(
+                        scanning_patterns.reconstruct_image_pattern(
+                            np.roll(image, self.scanning_parameters.mystery_offset),
+                            *self.waveform,
+                            (self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                            self.scanning_parameters.n_bin,
+                        )
+                    )
             except Empty:
                 pass
