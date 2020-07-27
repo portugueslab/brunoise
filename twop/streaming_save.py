@@ -15,6 +15,7 @@ class SavingParameters:
     plane_size: tuple
     n_t: int = 100
     n_z: int = 1
+    z_start: float = 0.0
 
 
 @dataclass
@@ -44,7 +45,7 @@ class StackSaver(Process):
         self.ref_event = ref_event
         self.ref_queue = ref_queue
         self.reference_param_queue = Queue()
-        self.z_start = None
+        self.z_start = 0
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -82,7 +83,6 @@ class StackSaver(Process):
             dtype=self.dtype,
         )
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
-        print("total number of planes", self.save_parameters.n_z)
         while (
             i_received < n_total
             and self.saving_signal.is_set()
@@ -163,6 +163,7 @@ class StackSaver(Process):
                 )
         else:
             ref_params = self.reference_param_queue.get(timeout=0.001)
+            print("saving metafile",  self.save_parameters.z_start)
             with open(
                 (
                     Path(self.save_parameters.output_dir)
@@ -186,7 +187,7 @@ class StackSaver(Process):
                         "crop_start": [0, 0, 0, 0],
                         "crop_end": [0, 0, 0, 0],
                         "padding": [0, 0, 0, 0],
-                        "top_z": self.z_start,
+                        "top_z": self.save_parameters.z_start,
                         "extra_planes": ref_params.extra_planes,
                         "dz": ref_params.dz
 

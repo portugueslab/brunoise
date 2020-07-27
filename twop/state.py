@@ -236,8 +236,6 @@ class ExperimentState(QObject):
         params_to_send.scanning_state = ScanningState.EXPERIMENT_RUNNING
         self.scanner.parameter_queue.put(params_to_send)
         if first_plane:
-            z = self.output_queues["z"].get(timeout=0.001)
-            self.saver.z_start = z
             self.send_save_params()
             self.saver.saving_signal.set()
         self.experiment_start_event.set()
@@ -333,12 +331,14 @@ class ExperimentState(QObject):
                 )
             )
         else:
+            z = self.output_queues["z"].get(timeout=0.001)
             self.saver.saving_parameter_queue.put(
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
                     plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
                     n_z=(self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes,
-                    n_t=self.reference_params.n_frames_ref
+                    n_t=self.reference_params.n_frames_ref,
+                    z_start=z
                 )
             )
 
