@@ -51,10 +51,10 @@ def convert_reference_params(st: ReferenceSettings) -> ReferenceParameters:
 
 
 class Corrector(Process):
-    def __init__(self, reference_event, experiment_start_event, stop_event, correction_event,
+    def __init__(self, reference_event, experiment_start_event, stop_event, correction_pre_event, correction_event,
                  reference_queue, scanning_parameters,
                  scanning_parameters_queue, data_queue,
-                 input_commands_queues, output_positions_queues, save_param_queue):
+                 input_commands_queues, output_positions_queues, save_param_queue_drift):
         super().__init__()
         # communication with other processes, active during acquisition of the reference
         self.reference_event = reference_event
@@ -64,6 +64,8 @@ class Corrector(Process):
         # communication with other processes, the status is not modified by any process
         self.stop_event = stop_event
         # communication with other processes, active during experiment (when correction is allowed)
+        self.correction_pre_event = correction_pre_event
+
         self.correction_event = correction_event
 
         # queue for the acquisition of the reference, planes are sent by the saver
@@ -82,7 +84,7 @@ class Corrector(Process):
         # this is for read the last position
         self.output_positions_queues = output_positions_queues
         # to know the directory where the anatomy/reference will be saved
-        self.save_parameters_queue = save_param_queue
+        self.save_parameters_queue_drift = save_param_queue_drift
         self.save_parameters = None
 
         self.x_pos = None
@@ -95,12 +97,17 @@ class Corrector(Process):
         self.reference_params = None
         self.reference_acq_params = None
         self.calibration_vector = None
+        self.corrected_exp = False
 
     def run(self):
         while True:
             self.update_settings()
             self.receive_save_parameters()
-            if self.correction_event.is_set() and self.experiment_start_event.is_set():
+            if self.correction_pre_event.is_set():
+                self.load_reference()
+                self.correction_pre_event.clear()
+                self.correction_event.set()
+            if self.correction_event.is_set():
                 self.exp_loop()
 
     def compute_registration(self, test_image):
@@ -121,7 +128,7 @@ class Corrector(Process):
 
     def exp_loop(self):
         pix_millimeter = self.calculate_fov()
-        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_acq_params.dz]  # x,y,z cal vect
+        self.calibration_vector = [pix_millimeter, pix_millimeter, self.reference_acq_params["dz"]]  # x,y,z cal vect
         while not self.stop_event.is_set() or self.correction_event.is_set():
             number_of_frames = 0
             frame_container = []
@@ -148,8 +155,8 @@ class Corrector(Process):
         # self.input_commands_queues["y"].put((vector[0], self.mov_type))
         # self.input_commands_queues["z"].put((vector[2], self.mov_type))
 
-    def reference_processing(self, input_ref):
-        return gaussian_filter(input_ref, self.reference_params.size_k, mode='same')
+    # def reference_processing(self, input_ref):
+    #     return gaussian_filter(input_ref, self.reference_params.size_k, mode='same')
 
     @staticmethod
     def frame_processing(frame_container):
@@ -181,21 +188,24 @@ class Corrector(Process):
 
     def load_reference(self):
         ref_path = Path(self.save_parameters.output_dir / "anatomy")
-        meta_files = sorted(ref_path.glob("*metadata"))
+        meta_files = sorted(ref_path.glob("*metadata*"))
+
         with open(str(meta_files[0])) as json_file:
             self.reference_acq_params = json.load(json_file)
         ref_files = sorted(ref_path.glob("*.h5"))
-        raw_reference = np.zeros(len(ref_files),
+        raw_reference = np.zeros((len(ref_files),
                                 self.reference_acq_params["shape_full"][2],
-                                self.reference_acq_params["shape_full"][3])
+                                self.reference_acq_params["shape_full"][3]))
         for n, plane_file in enumerate(ref_files):
-            raw_reference[n, :, :] = fl.load(str(plane_file))
-        self.reference = self.reference_processing(raw_reference)
+            raw_reference[n, :, :] = fl.load(str(plane_file))["plane"]
+        # self.reference = self.reference_processing(raw_reference)
+        self.reference = raw_reference
+        print("ref shape", raw_reference.shape)
         self.desired_plane = self.reference_acq_params["extra_planes"]
         self.correction_event.set()
 
     def receive_save_parameters(self):
         try:
-            self.save_parameters = self.save_parameters_queue.get(timeout=0.001)
+            self.save_parameters = self.save_parameters_queue_drift.get(timeout=0.001)
         except Empty:
             pass

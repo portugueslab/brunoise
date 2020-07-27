@@ -105,11 +105,10 @@ class ExperimentControl(QWidget):
 
     def check_df(self):
         if self.drift_corr_checkbox.isChecked():
-            self.state.correction_event.set()
-            self.state.corrector.load_reference()
+            self.state.correction_pre_event.set()
+            # self.state.corrector.load_reference()
         else:
             self.state.correction_event.clear()
-
 
     def toggle_reference(self):
         if not self.state.reference_event.is_set():

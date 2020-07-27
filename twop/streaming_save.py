@@ -33,6 +33,7 @@ class StackSaver(Process):
         self.n_frames_queue = n_frames_queue
         self.saving = False
         self.saving_parameter_queue = Queue()
+        self.saving_parameter_queue_drift = Queue()
         self.save_parameters: Optional[SavingParameters] = None
         self.i_in_plane = 0
         self.i_block = 0
@@ -81,7 +82,7 @@ class StackSaver(Process):
             dtype=self.dtype,
         )
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
-        print("total number of frames", self.save_parameters.n_z)
+        print("total number of planes", self.save_parameters.n_z)
         while (
             i_received < n_total
             and self.saving_signal.is_set()
@@ -214,7 +215,9 @@ class StackSaver(Process):
 
     def receive_save_parameters(self):
         try:
-            self.save_parameters = self.saving_parameter_queue.get(timeout=0.001)
+            save_param = self.saving_parameter_queue.get(timeout=0.001)
+            self.saving_parameter_queue_drift.put(save_param)
+            self.save_parameters = save_param
         except Empty:
             pass
 

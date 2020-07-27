@@ -160,6 +160,7 @@ class ExperimentState(QObject):
         self.end_event = Event()
         self.external_sync = ZMQcomm()
         self.duration_queue = Queue()
+        self.correction_pre_event = Event()
         self.correction_event = Event()
         self.scanner = Scanner(
             self.experiment_start_event, duration_queue=self.duration_queue,
@@ -189,9 +190,9 @@ class ExperimentState(QObject):
         self.master_motor = MotorMaster(self.motors, self.input_queues,
                                         self.output_queues, self.close_setup_event)
         self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
-                                   self.correction_event, self.saver.ref_queue, self.scanner.scanning_parameters,
+                                   self.correction_pre_event, self.correction_event, self.saver.ref_queue, self.scanner.scanning_parameters,
                                    self.scanner.corrector_queue, self.scanner.data_queue_copy,
-                                   self.input_queues, self.output_queues, self.saver.saving_parameter_queue
+                                   self.input_queues, self.output_queues, self.saver.saving_parameter_queue_drift
                                    )
         self.power_controller = LaserPowerControl()
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
@@ -213,6 +214,7 @@ class ExperimentState(QObject):
 
     def open_setup(self):
         self.send_scan_params()
+        self.send_save_params()
         self.send_reference_params()
 
     def start_experiment(self, first_plane=True):
@@ -224,7 +226,7 @@ class ExperimentState(QObject):
             self.duration_queue.put(duration)
         else:
             duration = self.reference_params.n_frames_ref * (1 / self.scanning_settings.framerate)
-            self.duration_queue.put(duration)
+            self.duration_queue.put(duration - 1)
             if first_plane:
                 self.move_stage_reference()
         params_to_send = convert_params(self.scanning_settings)
@@ -232,7 +234,6 @@ class ExperimentState(QObject):
         self.scanner.parameter_queue.put(params_to_send)
         if first_plane:
             z = self.output_queues["z"].get(timeout=0.001)
-            print("state")
             self.saver.z_start = z
             self.send_save_params()
             self.saver.saving_signal.set()
@@ -271,7 +272,7 @@ class ExperimentState(QObject):
 
     def advance_plane(self):
         self.input_queues["z"].put((self.experiment_settings.dz / 1000, self.move_type))
-        print("plane advanced by by", self.experiment_settings.dz)
+        print("plane advanced by", self.experiment_settings.dz)
         sleep(0.2)
         self.start_experiment(first_plane=False)
 
@@ -303,7 +304,7 @@ class ExperimentState(QObject):
             if self.saver.saving_signal.is_set():
                 if (
                     self.save_status is not None
-                    and self.save_status.i_t + 1 == self.save_status.target_params.n_t
+                    and self.save_status.i_t == self.save_status.target_params.n_t
                 ):
                     self.end_experiment()
                 self.save_queue.put(image)
@@ -324,7 +325,7 @@ class ExperimentState(QObject):
                 SavingParameters(
                     output_dir=Path(self.experiment_settings.save_dir),
                     plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
-                    n_z=self.experiment_settings.n_planes,
+                    n_z=self.experiment_settings.n_planes + 1,
                 )
             )
         else:
@@ -333,6 +334,7 @@ class ExperimentState(QObject):
                     output_dir=Path(self.experiment_settings.save_dir),
                     plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
                     n_z=(self.reference_params.extra_planes * 2) + self.experiment_settings.n_planes,
+                    n_t=self.reference_params.n_frames_ref
                 )
             )
 
