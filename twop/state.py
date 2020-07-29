@@ -289,6 +289,7 @@ class ExperimentState(QObject):
         print("moving stage up by", mic_to_move)
         self.input_queues["z"].put((mic_to_move / 1000, self.move_type))
         sleep(0.2)
+
     def close_setup(self):
         """ Cleanup on programe close:
         end all parallel processes, close all communication channels
