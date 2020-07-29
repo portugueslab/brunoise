@@ -184,6 +184,7 @@ class ExperimentState(QObject):
 
         self.input_queues = {"x": Queue(), "y": Queue(), "z": Queue()}
         self.output_queues = {"x": Queue(), "y": Queue(), "z": Queue()}  # not sure can be done with queue class
+        self.experiment_motor_copy = Queue()
         self.close_setup_event = Event()
         self.move_type = MovementType(False)
         self.motors = dict()
@@ -194,7 +195,7 @@ class ExperimentState(QObject):
         self.corrector = Corrector(self.reference_event, self.experiment_start_event, self.scanner.stop_event,
                                    self.correction_pre_event, self.correction_event, self.saver.ref_queue, self.scanner.scanning_parameters,
                                    self.scanner.corrector_queue, self.reconstructor.output_queue_corr,
-                                   self.input_queues, self.output_queues, self.saver.saving_parameter_queue_drift,
+                                   self.input_queues, self.output_queues, self.experiment_motor_copy,  self.saver.saving_parameter_queue_drift,
                                    self.reference_param_queue_drift
                                    )
         self.power_controller = LaserPowerControl()
@@ -273,6 +274,7 @@ class ExperimentState(QObject):
 
     def advance_plane(self):
         self.input_queues["z"].put((self.experiment_settings.dz / 1000, self.move_type))
+        self.experiment_motor_copy.put(self.experiment_settings.dz)
         print("plane advanced by", self.experiment_settings.dz)
         sleep(0.2)
         self.start_experiment(first_plane=False)

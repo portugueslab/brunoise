@@ -57,8 +57,8 @@ class Corrector(Process):
     def __init__(self, reference_event, experiment_start_event, stop_event, correction_pre_event, correction_event,
                  reference_queue, scanning_parameters,
                  scanning_parameters_queue, data_queue,
-                 input_commands_queues, output_positions_queues, save_param_queue_drift,
-                 reference_param_queue_drift):
+                 input_commands_queues, output_positions_queues, experiment_motor_copy,
+                 save_param_queue_drift, reference_param_queue_drift):
         super().__init__()
         # communication with other processes, active during acquisition of the reference
         self.reference_event = reference_event
@@ -88,20 +88,23 @@ class Corrector(Process):
         # this is for read the last position
         self.output_positions_queues = output_positions_queues
         # to know the directory where the anatomy/reference will be saved
+        self.experiment_motor_copy = experiment_motor_copy
         self.save_parameters_queue_drift = save_param_queue_drift
         self.save_parameters = None
 
-        self.x_pos = None
-        self.y_pos = None
-        self.z_pos = None
+        self.real_motor_pos = None
         self.mov_type = MovementType(False)
-        self.desired_plane = None
 
         self.reference = None
         self.reference_params = None
         self.reference_acq_params = None
         self.calibration_vector = None
         self.corrected_exp = False
+
+        self.desired_position = None
+        self.internal_requested_position = None
+        self.motor_position_start = None
+        self.desired_plane = None
 
     def run(self):
         while True:
@@ -124,7 +127,8 @@ class Corrector(Process):
             vectors.append(output[0])
             errors.append(output[1])
         ind = errors.index(min(errors))
-        z_disp = ind - ((self.reference_params.n_planes - 1) / 2)
+        z_disp = (ind - self.desired_plane)
+        print(z_disp)
         vector = [z_disp]
         vector.extend(list(vectors[ind]))
         vector = self.real_units(vector)
@@ -132,8 +136,10 @@ class Corrector(Process):
 
     def exp_loop(self):
         pix_millimeter = self.calculate_fov()
-        self.calibration_vector = [self.reference_acq_params["dz"], pix_millimeter, pix_millimeter]  # z, y ,x cal vect
+        self.calibration_vector = [self.reference_acq_params["dz"] / 1000, pix_millimeter, pix_millimeter]  # z, y ,x cal vect
         while self.correction_event.is_set():
+            self.control_system()
+
             number_of_frames = 0
             frame_container = []
             while number_of_frames != self.reference_params.n_frames_exp:
@@ -163,6 +169,18 @@ class Corrector(Process):
 
     # def reference_processing(self, input_ref):
     #     return gaussian_filter(input_ref, self.reference_params.size_k, mode='same')
+
+    def control_system(self):
+        if not self.experiment_motor_copy.empty():
+            command = self.experiment_motor_copy.get(timeout=0.001)
+            self.update_desired_position(command)
+
+    def search_seed_frame(self, abs_pos):
+        return (abs_pos - self.reference_acq_params["top_z"]) / (self.reference_acq_params["dz"] / 1000)
+
+    def update_desired_position(self, displ):
+        self.desired_plane += np.ceil(displ / self.reference_acq_params["dz"] / 1000)
+
 
     @staticmethod
     def frame_processing(frame_container):
@@ -206,7 +224,11 @@ class Corrector(Process):
             raw_reference[n, :, :] = fl.load(str(plane_file))["plane"]
         # self.reference = self.reference_processing(raw_reference)
         self.reference = raw_reference
-        self.desired_plane = self.reference_acq_params["extra_planes"]
+        # self.motor_position_start = \
+        pos = None
+        while pos is None:
+            pos = self.get_last_entry(self.output_positions_queues["z"])
+        self.desired_plane = np.ceil(self.search_seed_frame(pos)).astype(int)
         # self.correction_event.set()
 
     def receive_save_parameters(self):

@@ -40,7 +40,6 @@ class MotorMaster(Process):
                 actual_pos = self.motors[axis].get_position()
             else:
                 actual_pos = self.motors[axis].get_position(first=True)
-            # print("actual pos mort", axis, actual_pos)
             if actual_pos is not None:
                 self.positions[axis] = actual_pos
                 self.output_queues[axis].put(actual_pos)
