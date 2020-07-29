@@ -139,7 +139,7 @@ class ExperimentControl(QWidget):
             self.plane_progress.setMaximum(sstatus.target_params.n_t)
             self.plane_progress.setValue(sstatus.i_t)
             self.stack_progress.setMaximum(sstatus.target_params.n_z)
-            self.stack_progress.setValue(sstatus.i_z)
+            self.stack_progress.setValue(sstatus.i_z + 1)
         if not self.state.saving:
             self.set_saving()
 

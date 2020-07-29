@@ -244,17 +244,14 @@ class ExperimentState(QObject):
 
     def end_experiment(self, force=False):
         self.experiment_start_event.clear()
-
+        print(self.save_status.i_z + 1, "of", self.save_status.target_params.n_z)
         if not force and self.save_status.i_z + 1 < self.save_status.target_params.n_z:
             self.advance_plane()
+            print("advance")
         else:
             self.saver.saving_signal.clear()
             self.save_status.i_z = 0
             self.save_status.i_t = 0
-            if self.reference_event.is_set():
-                self.move_stage_reference(first=False)
-                self.reference_event.clear()
-                print("ref event clear")
             if self.pause_after:
                 self.pause_scanning()
             else:
@@ -283,12 +280,15 @@ class ExperimentState(QObject):
         if first:
             mic_to_move = - self.reference_params.extra_planes * self.experiment_settings.dz
         else:
+            self.reference_event.clear()
+            self.saver.saving_signal.clear()
+            self.save_status.i_z = 0
+            self.save_status.i_t = 0
             mic_to_move = - (self.reference_params.extra_planes +
                              self.experiment_settings.n_planes - 1) * self.experiment_settings.dz
         print("moving stage up by", mic_to_move)
         self.input_queues["z"].put((mic_to_move / 1000, self.move_type))
         sleep(0.2)
-
     def close_setup(self):
         """ Cleanup on programe close:
         end all parallel processes, close all communication channels
@@ -311,6 +311,14 @@ class ExperimentState(QObject):
                     and self.save_status.i_t == self.save_status.target_params.n_t
                 ):
                     self.end_experiment()
+                elif (self.save_status is not None
+                    and self.save_status.i_t + 1 == self.save_status.target_params.n_t and
+                    self.save_status.i_z + 1 == self.save_status.target_params.n_z and
+                      self.reference_event.is_set()):
+                    print("move up")
+                    self.move_stage_reference(first=False)
+                    print("ref event clear")
+
                 self.save_queue.put(image)
             return image
         except Empty:
