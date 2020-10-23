@@ -1,5 +1,6 @@
 # Brunoise
 
+[![DOI](https://zenodo.org/badge/238418598.svg)](https://zenodo.org/badge/latestdoi/238418598)
 <a href="url"><img 
 src="https://github.com/portugueslab/twop_python/blob/master/icons/GUI.PNG"
 align="left" 
