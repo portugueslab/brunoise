@@ -1,7 +1,7 @@
 # Brunoise
 
 <a href="url"><img 
-src="https://github.com/portugueslab/Brunoise/blob/master/brunoise/icons/GUI.png" 
+src="https://github.com/portugueslab/twop_python\icons\GUI.PNG"
 align="left" 
 height="190" 
 width="270"></a>
