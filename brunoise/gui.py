@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QCheckBox,
 )
 from state import ExperimentState, ScanningParameters, frame_duration
-from twop.objective_motor_sliders import MotionControlXYZ
+from brunoise.objective_motor_sliders import MotionControlXYZ
 
 import pyqtgraph as pg
 import qdarkstyle

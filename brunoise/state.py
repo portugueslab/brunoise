@@ -12,13 +12,12 @@ from pathlib import Path
 from streaming_save import StackSaver, SavingParameters, SavingStatus
 from arrayqueues.shared_arrays import ArrayQueue
 from queue import Empty
-from twop.objective_motor import MotorControl
-from twop.external_communication import ZMQcomm
-from twop.power_control import LaserPowerControl
+from brunoise.objective_motor import MotorControl
+from brunoise.external_communication import ZMQcomm
+from brunoise.power_control import LaserPowerControl
 from math import sqrt
 from PyQt5.QtCore import QObject, pyqtSignal
 from typing import Optional
-from enum import Enum
 from time import sleep
 from sequence_diagram import SequenceDiagram
 
