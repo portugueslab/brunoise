@@ -1,0 +1,16 @@
+name: brunoise
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - pyqt
+  - numpy
+  - scipy
+  - numba
+  - pandas
+  - pytables
+  - ffmpeg
+  - scikit-image
+  - h5py
+  - vispy

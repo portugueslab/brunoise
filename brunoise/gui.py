@@ -226,11 +226,3 @@ class TwopViewer(QMainWindow):
     def closeEvent(self, event) -> None:
         self.state.close_setup()
         event.accept()
-
-
-if __name__ == "__main__":
-    app = QApplication([])
-    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    viewer = TwopViewer()
-    viewer.show()
-    app.exec_()

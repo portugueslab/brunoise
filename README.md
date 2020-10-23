@@ -6,13 +6,13 @@ align="left"
 height="190" 
 width="270"></a>
 
-Brunoise is a software for control of Two-Photon Laser Scanning Microscopy.
-It is developed by members of the [PortuguesLab](http://www.portugueslab.com/)
+Brunoise is a software package for control of two-photon laser scanning microscopes.
+It is developed by members of the [Portugues Lab](http://www.portugueslab.com/)
  at the Technical University of Munich and Max Planck Institute of Neurobiology. 
  
 Like [Sashimi](https://github.com/portugueslab/sashimi), the software is built for a particular microscope configuration, but the modular architecture allows for easy replacement of
-hardware by other vendors. Moreover, the software can easily interact with others through the library [PyZMQ](https://pyzmq.readthedocs.io/en/latest/index.html) which allows to do imaging
-experiments paired with a stimulation protocol.
+hardware by other vendors. Moreover, the software can easily interact with others through the library [PyZMQ](https://pyzmq.readthedocs.io/en/latest/index.html) which synchronizing imaging
+experiments with behavioral recording and stimulation protocols.
  
 # Installation
 

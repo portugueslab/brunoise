@@ -1,0 +1,55 @@
+language: python
+dist: xenial
+matrix:
+  include:
+  - python: '3.7'
+    env: NOXSESSION="tests-3.7"
+  - python: '3.8'
+    env: NOXSESSION="tests-3.8"
+  - python: '3.8'
+    env: NOXSESSION="lint"
+install:
+- pip install nox
+script: nox --session "$NOXSESSION"
+
+after_success:
+- pip install coveralls
+- coveralls
+
+- pip install Sphinx==3.0.3
+- pip install myst-parser
+- pip install .  # Seems to be required for the apidocs
+
+- cd docs
+- sphinx-apidoc ../brunoise -o source/
+- make html
+- cd ..
+
+# Assuming you have installed the travis-ci CLI tool, after you
+# create the GitHub repo and add it to Travis, run the
+# following command to finish PyPI deployment setup:
+# $ travis encrypt --add deploy.password
+deploy:
+  - provider: pages
+    skip_cleanup: true
+    keep_history: true
+    github_token:
+        secure: "lOfXKhZ6HgSZY8HpIz9I54esCYyqRNr34rIUYV76kBZAZS9RuvA4CjaL3yhtCYIZj1uSgATQ6c/MAaGBerppciJPQz3sqKgcnhaUw/b6YlvYX4ZHH3GLwDWvfSbQzSVgRWqFh1x7Up+1lpv3S61G97lyYqJyUZf2rbdadAbx9pPvFDUZYVHBYYx6CenoUFXa+G8ro4Pr+zD3lqnyhJaePZDZHP2sT0+KPzpZw+nHP32THffL4fUUtJn5jholstVH6dHioiFKd/lOJCBMwfnEOCQbESl00hQsMwEsiEeEltc5RcIT3DlE1FfhN240Dr8ccI6dH7CJ1z7gzkR53DXhzCkUkelLeCOqiGg+cX9h31km9XNlQ6muT9XN4pbfXqkmomNJAk/cN8w+NJO0H3AFPD9iglqToBOauCrfi68vfiU7ghU3i94dx1n1VUKpAFDQ0n2pid5YwYhMp0TwbXHR+VkWfm93NNikZKzaNiLJFEcI9EOUMxX5o0H7TutRaYAQPUbOyLtNAnMM/ZbTIPWn2nyIqev0lT/al+EZ672r+TQxUg6R6xwo7KvnFWfmV6mS2H2axjn5EQh6TNULMsuql/iME8UxAJ3fy1ggIracO/iztRa/KDAF0WaKRHHpKgSLZl/fq/yT5FfUlsfboUcz1rtDXQLyiMhA5IFMHE32jkI="
+    on:
+      python: 3.7
+      branch: master
+    local-dir: docs/build/html
+    committer-from-gh: true
+    target_branch: gh-pages
+
+  - provider: pypi
+    skip_cleanup: true
+    distributions: sdist bdist_wheel
+    user: __token__
+    password:
+        secure: "WF9apZHztLe8VjSF4t3lz9NmWfVOZl8082HXIm64MDj8QIhpFuQLBw9cMpZVf1nBXyuanJBwy5FTSXQxEYfqZSrzMkp5tb2S2JwygYYC1xfIILCRawJepWShsR8MCnS0YT12kgZ7esqVxjxjXN7oKrnF0DHHyNpsoNV/pY97L8J4a/Fs1Z1lwhUuotCE2EhK2jDNvl2jKofxmsf9oiTH5gtMHa8yfaRZURye3wjxDbtXK88qH1wxjUi1i0UGjnrzbpwP17CTggK0CjKj248oq7cRcPRC6Vj/NOfa1rLjrkIgY3PDVe2k/7wBuu0FM8VAoHIElGd4y0qwDg4lLn0gv0T3LWM7zzoOx+Uu8AXIu67p0ADV/bJzWL0jaTHBq7J7q6a1zMNCq550mr5m/phgIMr8JH9XwzvTFXsBMokxe1L9WDQ0B/pUFb5Kk5b8gAqQ4XBzFbZB/3cwbKSsEL99RKCwFnPg/GTqBDEWPTw7vv/mIrP/aLEHoCgo+RX5e7S809wgvgvtsFyw/3jXzlVtZxp8EMJCEvBU5hqyT1UNhFKvGSgaDu1jihi1CZyFJBE5iJy+r0O/wY+ckEisbcgtvG8w46hWBIR/6/CPuYxNJo6Dlt2I2PpTdMoaMiquKPh/ioV7WvdhezRHk1VTEnooIURrXtXOe+0t6RkwieNgzSk="
+    on:
+      tags: true
+      python: 3.7
+    skip_existing: true
+    committer-from-gh: true

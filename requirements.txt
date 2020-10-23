@@ -1,0 +1,15 @@
+arrayqueues==1.2.0b0
+flammkuchen==0.9
+lightparam>=0.4, <0.5
+pyqt5>=5.15
+pyzmq
+QDarkStyle==2.7
+markdown==3.2.2
+click
+traitlets
+nidaqmx
+toml
+scopecuisine>=0.1.2
+pyqtgraph
+napari
+numba
