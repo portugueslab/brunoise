@@ -1,127 +1,36 @@
-# 2-photon reconstruction project
-"Infrared new deal"
+# Brunoise
 
-## Instrumentation control
+<a href="url"><img 
+src="https://github.com/portugueslab/Brunoise/blob/master/brunoise/icons/GUI.png" 
+align="left" 
+height="190" 
+width="270"></a>
 
-For the following it needs to be figured out how it communicates with the computer
-and which Python API should be used
+Brunoise is a software for control of Two-Photon Laser Scanning Microscopy.
+It is developed by members of the [PortuguesLab](http://www.portugueslab.com/)
+ at the Technical University of Munich and Max Planck Institute of Neurobiology. 
+ 
+Like [Sashimi](https://github.com/portugueslab/sashimi), the software is built for a particular microscope configuration, but the modular architecture allows for easy replacement of
+hardware by other vendors. Moreover, the software can easily interact with others through the library [PyZMQ](https://pyzmq.readthedocs.io/en/latest/index.html) which allows to do imaging
+experiments paired with a stimulation protocol.
+ 
+# Installation
 
-- [X] Stage control
-Serial port: figure out the port and the communication commands, use PySerial
+Clone this repository and navigate to the main folder `../brunoise`
+    
+The software uses the package `pyvisa` so oyu first need to install it:
 
-- [X] Shutter control
-Diego
+    pip install pyvisa
 
-- [ ] Fix the shutter UX
-| Figure out deterministically in the software whether the shutter is on or off, and make it always on if scanning, always off if not 
-
-- [X] Laser power control
-Diego
-
-- [ ] Photon-counted data
-It is done in software. To be investigated
+# User Interface
 
 
-## Scanning
+Form the GUI the user can specify different acquisition settings and interact with external hardware such as shutters, motorized stage and laser. 
+    
+# Software architecture
 
-- [x] Calculation of parameters
-basic algebra and looking up NI documentation
-(area, frequency, resolution, aspect ratio)
-on paper and python functions
-e.g. given the zoom and the target aspect ratio, calculate the scanning pattern
-     * [x] Calculate single plane duration
-     * [x] See how the parameters have to be adjusted (scanning stopped) to get an _exact_ plane duration
-     * [ ] Decide on parameters for user to input for scanning (sample rate output is not intuitive) and calculate the rest from those (e.g. resolution, aspect ratio, frame rate)
-     * [ ] Investigate what parameters are possible in the NI system for input and output rates
-     * [ ] Look at galvo responses to see how far the speed can be pushed before they fly out or burn
 
-- [X] Image reconstruction and acquisition
-readout from the PMT in a different frequency
-figuring out how the binning happens and photon counted or not
-managing the memory of the data
-
-- [X] Parameters and state machine for scanning
-(preview, experiment running, shutter on or off)
-
-- [X] Figure out where the image reconstruction offset of -400 at 500000Hz output rate (probably different at other rates) comes from and calculate it automatically,
-
-- [ ] fix things so that the mystery offset is not needed. 
-
-- [X]  Information streaming
-(Luigi or Vilim)
-Hardware control needs to run in a separate process from the GUI,
-yet has to be controllable through it and stream information back
-(queues, ArrayQueues)
-Separate process for the hardware control
-and communication (parameter and array queues)
-
-- [ ] Figure out input voltage scaling from the ADC (is it 12-bit?) and optimal saving format
-
-- [X] Data saving
-HDF file(s): directly split datasets
-
-- [ ] Automatic drift correction
-    Before the beginning of the experiment, capture one plane above and one below. Check online if the current image is 
-    better correlated with either rather than the current plane, if so, move the stage until it is. (having one above and one below helps determine the direction)
-
-- [ ] Physical units
-    This already exists, but is not done systematically, and the nonlinearity of the galvo voltage is not taken into account
-    Calibrate the physical units so at different zoom levels the size of pixels is known
-    Can be done with anything flourescent and just moving it with the objective motor and checking with the caliper. 
-    Physical units can then be displayed on the screen and used in the GUI for: zooming, drawing a scale bar, having a small measuring tool
-
-- [ ] Add the Pockel cell and write the extra binary patter from the parts of the scanning pattern not relevant 
-to the image
-
-- [ ] Depending on the aspect ration, choose different mirrors for fast or slow (right now the fast scanning always happens on x)
-
-## GUI
-
-- [X] Image display
-    * [X] just display
-    * [ ] ROI for live signal view (Hagar)
-    * [ ] using the Napari library for image viewing (history of acquired images in a rolling buffer, two-channel view when red channel is implemented, gamma etc adjustments)
-    * [ ] Temporal averaging
-
-- [X] Stage control
-    * [X] like labview (labels for current position and spin boxes to change)
-    * [X] nice sliders with markers for current position
-
-- [x] Experiment control
-    * [x] input duration from Stytra, start button and z shift
-    * [x] get all data from Stytra and just z shift
-
-- [ ] Scanning parameter gui
-    * [X] all manual parameters like in labview
-    * [X] intuitive parameters (vilim)
-    * [ ] zoom in and out of the image like google maps
-
-- [ ] Saving settings (zoom level, frequency etc) in settings files (so each experiment set can have exactly the same settings)
-
-- [X] ZMQ synchronisation for Stytra (consult with Luigi, Ema)
-bits about networking and zeromq, look at lightsheet software (Ema)
-
-- [ ] Calculate the (maximum) size of the dataset and check if there is enough space on the disk
-
-- [ ] Add a button that opens the latest acquired dataset in the viewer to check it 
-
-- [ ] Calculate the hour at which the whole scanning ends
-
-- [ ] Diagnostics of scan patterns: each scan pattern causes image deformations depending on other paramteres. 
-    * [ ] Provide a diagnostic view of the galvo position (also fix the physical cabling so it is not precarious) so that optimal parameters can be adjusted from the impulse response.
-    * [ ] Use the step response function (linearity can be probably assumed) to automatically calculate the optimal parameters for the scanning pattern. 
-
-## Further tasks
-- [ ] red PMT
-- [ ] ablations
-- [ ] interlacing scanning pattern
-- [ ] scanning multiple regions 
-- [ ] spiral scanning pattern
-- [ ] resilient mode: if something goes wrong with scanning, restart stytra for this plane
-
-# Notes on the program architecture
 Everything that handles the microscope hardware comes together in the ExperimentState.
 Things that user set are called Settings (handled via lightparam for automated GUI creation), and the hardware-related things that are computed from
 the user settings are called Parameters (e.g. `ScanningParameters`).
-
 GUI code should only access the hardware through the `ExperimentState`
