@@ -108,13 +108,13 @@ class Scanner(Process):
         self.sample_rate_in = self.n_bin * self.sample_rate_out
 
         self.write_signals = np.stack([self.pos_x, self.pos_y], 0)
-        self.read_buffer = np.zeros((2, self.n_samples_in))
+        self.read_buffer = np.zeros((3, self.n_samples_in))
         self.mystery_offset = self.scanning_parameters.mystery_offset
 
     def setup_tasks(self, read_task, write_task, shutter_task):
         # Configure the channels
         read_task.ai_channels.add_ai_voltage_chan(
-            "Dev1/ai0:1", min_val=-1, max_val=1
+            "Dev1/ai0:3", min_val=-1, max_val=1
         )  # channels are 0: green PMT, 1 x galvo pos 2 y galvo pos
         write_task.ao_channels.add_ao_voltage_chan(
             "Dev1/ao0:1", min_val=-10, max_val=10
@@ -187,7 +187,7 @@ class Scanner(Process):
             except nidaqmx.DaqError as e:
                 print(e)
                 break
-            self.data_queue.put(self.read_buffer[0, :])
+            self.data_queue.put(np.stack([self.read_buffer[0, :], self.read_buffer[-1, :]]))
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
             try:
@@ -266,14 +266,18 @@ class ImageReconstructor(Process):
                 pass
 
             try:
-                image = self.data_in_queue.get(timeout=0.001)
-                self.output_queue.put(
-                    scanning_patterns.reconstruct_image_pattern(
-                        np.roll(image, self.scanning_parameters.mystery_offset),
-                        *self.waveform,
-                        (self.scanning_parameters.n_x, self.scanning_parameters.n_y),
-                        self.scanning_parameters.n_bin,
+                images = self.data_in_queue.get(timeout=0.001)
+                recon_images = []
+                for image in images:
+                    recon_images.append(
+                        scanning_patterns.reconstruct_image_pattern(
+                            np.roll(image, self.scanning_parameters.mystery_offset),
+                            *self.waveform,
+                            (self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                            self.scanning_parameters.n_bin,
+                        )
                     )
+                self.output_queue.put(np.stack(recon_images)
                 )
             except Empty:
                 pass

@@ -211,15 +211,15 @@ class ExperimentState(QObject):
 
     def get_image(self):
         try:
-            image = -self.reconstructor.output_queue.get(timeout=0.001)
+            images = -self.reconstructor.output_queue.get(timeout=0.001)
             if self.saver.saving_signal.is_set():
                 if (
                     self.save_status is not None
                     and self.save_status.i_t + 1 == self.save_status.target_params.n_t
                 ):
                     self.end_experiment()
-                self.save_queue.put(image)
-            return image
+                self.save_queue.put(images)
+            return images
         except Empty:
             return None
 

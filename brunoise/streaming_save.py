@@ -67,7 +67,7 @@ class StackSaver(Process):
         self.i_in_plane = 0
         self.i_block = 0
         self.current_data = np.empty(
-            (self.save_parameters.n_t, 1, *self.save_parameters.plane_size),
+            (self.save_parameters.n_t, 2, *self.save_parameters.plane_size),
             dtype=self.dtype,
         )
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
@@ -111,7 +111,7 @@ class StackSaver(Process):
             self.current_data[: self.i_in_plane, :, :, :] = old_data
 
     def fill_dataset(self, frame):
-        self.current_data[self.i_in_plane, 0, :, :] = self.cast(frame)
+        self.current_data[self.i_in_plane, :, :, :] = self.cast(frame)
         self.i_in_plane += 1
         self.saved_status_queue.put(
             SavingStatus(
