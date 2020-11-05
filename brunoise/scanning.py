@@ -187,7 +187,6 @@ class Scanner(Process):
             except nidaqmx.DaqError as e:
                 print(e)
                 break
-            print(np.max(self.read_buffer[-1, :]))
             self.data_queue.put(np.stack([self.read_buffer[0, :], self.read_buffer[-1, :]]))
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running

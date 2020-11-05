@@ -128,7 +128,12 @@ class ViewingWidget(QWidget):
         self.layout().addWidget(self.image_viewer)
         self.layout().addWidget(self.chk_green)
         self.layout().addWidget(self.chk_red)
+        self.chk_green.setChecked(True)
         self.first_image = True
+        self.color_modality_in_use = "g"
+        self.modality_to_display = "g"
+        self.levelMode_in_use = "mono"
+        self.levelMode_to_display = "mono"
 
     def update(self) -> None:
         current_images = self.state.get_image()
@@ -138,18 +143,34 @@ class ViewingWidget(QWidget):
 
         if not(self.chk_green.isChecked()) and not(self.chk_red.isChecked()):
             self.chk_green.setChecked(True)
-
+            self.modality_to_display = "g"
+            self.levelMode_to_display = "mono"
         if self.chk_green.isChecked() and not(self.chk_red.isChecked()):
             current_image = current_images[0, :, :]
+            self.modality_to_display = "g"
+            self.levelMode_to_display = "mono"
         elif self.chk_red.isChecked() and not(self.chk_green.isChecked()):
             current_image = current_images[1, :, :]
+            self.modality_to_display = "r"
+            self.levelMode_to_display = "mono"
         elif self.chk_red.isChecked() and self.chk_green.isChecked():
-            current_image = np.stack([current_images[0, :, :], current_images[1, :, :], current_images[0, :, :]])
+            current_image = np.stack([current_images[0, :, :], current_images[1, :, :], current_images[0, :, :]], -1)
+            self.modality_to_display = "gr"
+            self.levelMode_to_display = "rgba"
+
+        if self.color_modality_in_use != self.modality_to_display:
+            self.first_image = True
+            self.color_modality_in_use = self.modality_to_display
+
+        if self.levelMode_in_use != self.levelMode_to_display:
+            self.levelMode_in_use = self.levelMode_to_display
+
         self.image_viewer.setImage(
             current_image,
             autoLevels=self.first_image,
             autoRange=self.first_image,
             autoHistogramRange=self.first_image,
+            levelMode=self.levelMode_in_use
         )
         self.first_image = False
 
