@@ -108,14 +108,14 @@ class Scanner(Process):
         self.sample_rate_in = self.n_bin * self.sample_rate_out
 
         self.write_signals = np.stack([self.pos_x, self.pos_y], 0)
-        self.read_buffer = np.zeros((3, self.n_samples_in))
+        self.read_buffer = np.zeros((4, self.n_samples_in))
         self.mystery_offset = self.scanning_parameters.mystery_offset
 
     def setup_tasks(self, read_task, write_task, shutter_task):
         # Configure the channels
         read_task.ai_channels.add_ai_voltage_chan(
             "Dev1/ai0:3", min_val=-1, max_val=1
-        )  # channels are 0: green PMT, 1 x galvo pos 2 y galvo pos
+        )  # channels are 0: green PMT, 1 x galvo pos 2 y galvo pos, 3 red PMT
         write_task.ao_channels.add_ao_voltage_chan(
             "Dev1/ao0:1", min_val=-10, max_val=10
         )
@@ -187,6 +187,7 @@ class Scanner(Process):
             except nidaqmx.DaqError as e:
                 print(e)
                 break
+            print(np.max(self.read_buffer[-1, :]))
             self.data_queue.put(np.stack([self.read_buffer[0, :], self.read_buffer[-1, :]]))
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running

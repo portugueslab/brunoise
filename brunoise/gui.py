@@ -52,8 +52,6 @@ class ExperimentControl(QWidget):
         self.startstop_button = QPushButton()
         self.set_saving()
         self.chk_pause = QCheckBox("Pause after experiment")
-        self.chk_green = QCheckBox("Green Channel")
-        self.chk_red = QCheckBox("Red Channel")
         self.stack_progress = QProgressBar()
         self.plane_progress = QProgressBar()
         self.plane_progress.setFormat("Frame %v of %m")
@@ -65,8 +63,6 @@ class ExperimentControl(QWidget):
         self.layout().addWidget(self.save_location_button)
         self.layout().addWidget(self.startstop_button)
         self.layout().addWidget(self.chk_pause)
-        self.layout().addWidget(self.chk_green)
-        self.layout().addWidget(self.chk_red)
         self.layout().addWidget(self.plane_progress)
         self.layout().addWidget(self.stack_progress)
 
@@ -125,15 +121,24 @@ class ViewingWidget(QWidget):
         self.state = state
         self.setLayout(QVBoxLayout())
         self.image_viewer = pg.ImageView()
+        self.chk_green = QCheckBox("Green Channel")
+        self.chk_red = QCheckBox("Red Channel")
         self.image_viewer.ui.roiBtn.hide()
         self.image_viewer.ui.menuBtn.hide()
         self.layout().addWidget(self.image_viewer)
+        self.layout().addWidget(self.chk_green)
+        self.layout().addWidget(self.chk_red)
         self.first_image = True
 
     def update(self) -> None:
         current_images = self.state.get_image()
+
         if current_images is None:
             return
+
+        if not(self.chk_green.isChecked()) and not(self.chk_red.isChecked()):
+            self.chk_green.setChecked(True)
+
         if self.chk_green.isChecked() and not(self.chk_red.isChecked()):
             current_image = current_images[0, :, :]
         elif self.chk_red.isChecked() and not(self.chk_green.isChecked()):
