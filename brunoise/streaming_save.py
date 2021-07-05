@@ -44,7 +44,7 @@ class StackSaver(Process):
         self.i_block = 0
         self.current_data = None
         self.saved_status_queue = Queue()
-        self.dtype = np.float32
+        self.dtype = np.int16
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -101,13 +101,14 @@ class StackSaver(Process):
         """
         Conversion into a format appropriate for saving
         """
+        frame = (frame/20*2**16).astype(np.int16)
         return frame
 
     def update_n_t(self, n_t):
         if n_t != self.save_parameters.n_t:
             self.save_parameters.n_t = n_t
             old_data = self.current_data[: self.i_in_plane, :, :, :].copy()
-            self.current_data = np.empty((n_t, *self.current_data.shape[1:]))
+            self.current_data = np.empty((n_t, *self.current_data.shape[1:]), dtype=self.dtype)
             self.current_data[: self.i_in_plane, :, :, :] = old_data
 
     def fill_dataset(self, frame):
