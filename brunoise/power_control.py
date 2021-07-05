@@ -5,7 +5,7 @@ from math import acos
 class LaserPowerControl:
     def __init__(
         self,
-        port="COM5",
+        port="COM3",
         baudrate=921600,
         parity=pyvisa.constants.Parity.none,
         encoding="ascii",
