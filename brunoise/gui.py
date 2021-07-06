@@ -154,7 +154,7 @@ class ViewingWidget(QWidget):
             self.modality_to_display = "r"
             self.levelMode_to_display = "mono"
         elif self.chk_red.isChecked() and self.chk_green.isChecked():
-            current_image = np.stack([current_images[0, :, :], current_images[1, :, :], current_images[0, :, :]], -1)
+            current_image = np.stack([current_images[1, :, :], current_images[0, :, :], current_images[1, :, :]], -1)
             self.modality_to_display = "gr"
             self.levelMode_to_display = "rgba"
 
