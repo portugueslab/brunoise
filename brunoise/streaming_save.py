@@ -19,6 +19,7 @@ class SavingParameters:
     plane_size: tuple
     n_t: int = 100
     n_z: int = 1
+    channel: str = "Green"
     notification_email: str = "None"
     notification_frequency: int = 3
 
@@ -63,6 +64,14 @@ class StackSaver(Process):
         (Path(self.save_parameters.output_dir) / "original").mkdir(
             parents=True, exist_ok=True
         )
+        if self.save_parameters.channel == "Both":
+            (Path(self.save_parameters.output_dir) / "original" / "green").mkdir(
+                parents=True, exist_ok=True
+            )
+            (Path(self.save_parameters.output_dir) / "original" / "red").mkdir(
+                parents=True, exist_ok=True
+            )
+
         i_received = 0
         self.i_in_plane = 0
         self.i_block = 0
@@ -124,41 +133,87 @@ class StackSaver(Process):
         if self.i_in_plane == self.save_parameters.n_t:
             self.complete_plane()
 
+    def dump_metadata(self, file):
+        json.dump(
+            {
+                "shape_full": (
+                    self.save_parameters.n_t,
+                    self.i_block,
+                    *self.current_data.shape[2:],
+                ),
+                "shape_block": (
+                    self.save_parameters.n_t,
+                    1,
+                    *self.current_data.shape[2:],
+                ),
+                "crop_start": [0, 0, 0, 0],
+                "crop_end": [0, 0, 0, 0],
+                "padding": [0, 0, 0, 0],
+            },
+            file,
+        )
+
     def finalize_dataset(self):
-        with open(
+        if self.save_parameters.channel == "Both":
+            with open(
+                    (
+                            Path(self.save_parameters.output_dir)
+                            / "original"
+                            / "green"
+                            / "stack_metadata.json"
+                    ),
+                    "w",
+            ) as fg,\
+            open(
                 (
                         Path(self.save_parameters.output_dir)
                         / "original"
+                        / "red"
                         / "stack_metadata.json"
                 ),
                 "w",
-        ) as f:
-            json.dump(
-                {
-                    "shape_full": (
-                        self.save_parameters.n_t,
-                        self.i_block,
-                        *self.current_data.shape[2:],
+            ) as fr:
+                self.dump_metadata(fg)
+                self.dump_metadata(fr)
+        else:
+            with open(
+                    (
+                            Path(self.save_parameters.output_dir)
+                            / "original"
+                            / "stack_metadata.json"
                     ),
-                    "shape_block": (
-                        self.save_parameters.n_t,
-                        1,
-                        *self.current_data.shape[2:],
-                    ),
-                    "crop_start": [0, 0, 0, 0],
-                    "crop_end": [0, 0, 0, 0],
-                    "padding": [0, 0, 0, 0],
-                },
-                f,
-            )
+                    "w",
+            ) as f:
+                self.dump_metadata(f)
 
     def complete_plane(self):
-        fl.save(
-            Path(self.save_parameters.output_dir)
-            / "original/{:04d}.h5".format(self.i_block),
-            {"stack_4D": self.current_data},
-            compression="blosc",
-        )
+        if self.save_parameters.channel == "Green":
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "original/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data[:,:1,:,:]},
+                compression="blosc",
+            )
+        elif self.save_parameters.channel == "Red":
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "original/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data[:,1:,:,:]},
+                compression="blosc",
+            )
+        else:
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "original/green/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data[:,:1,:,:]},
+                compression="blosc",
+            )
+            fl.save(
+                Path(self.save_parameters.output_dir)
+                / "original/red/{:04d}.h5".format(self.i_block),
+                {"stack_4D": self.current_data[:,1:,:,:]},
+                compression="blosc",
+            )
         self.i_block += 1
 
         if self.i_block % self.save_parameters.notification_frequency == 0 and \

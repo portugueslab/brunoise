@@ -28,6 +28,7 @@ class ExperimentSettings(ParametrizedQt):
         self.name = "recording"
         self.n_planes = Param(1, (1, 500))
         self.dz = Param(1.0, (0.1, 20.0), unit="um")
+        self.channel = Param("Green", ["Green", "Red", "Both"])
         self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
         self.notification_email = Param("None")
         self.notify_every_n_planes = Param(3, (1, 1000))
@@ -236,6 +237,7 @@ class ExperimentState(QObject):
                 output_dir=Path(self.experiment_settings.save_dir),
                 plane_size=(self.scanning_parameters.n_x, self.scanning_parameters.n_y),
                 n_z=self.experiment_settings.n_planes,
+                channel=self.experiment_settings.channel,
                 notification_email=self.experiment_settings.notification_email,
                 notification_frequency=self.experiment_settings.notify_every_n_planes
             )
