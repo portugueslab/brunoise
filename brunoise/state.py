@@ -27,7 +27,7 @@ class ExperimentSettings(ParametrizedQt):
         super().__init__()
         self.name = "recording"
         self.n_planes = Param(1, (1, 500))
-        self.dz = Param(1.0, (0.1, 20.0), unit="um")
+        self.dz = Param(1.0, (-20, 20.0), unit="um")
         self.channel = Param("Green", ["Green", "Red", "Both"])
         self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
         self.notification_email = Param("None")
