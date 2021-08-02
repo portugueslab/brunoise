@@ -10,7 +10,6 @@ import json
 import yagmail
 from PIL import Image
 import os
-import time
 
 
 @dataclass
@@ -32,10 +31,11 @@ class SavingStatus:
 
 
 class StackSaver(Process):
-    def __init__(self, stop_signal, data_queue, n_frames_queue):
+    def __init__(self, stop_signal, data_queue, time_queue, n_frames_queue):
         super().__init__()
         self.stop_signal = stop_signal
         self.data_queue = data_queue
+        self.time_queue = time_queue
         self.saving_signal = Event()
         self.n_frames_queue = n_frames_queue
         self.saving = False
@@ -46,6 +46,8 @@ class StackSaver(Process):
         self.current_data = None
         self.saved_status_queue = Queue()
         self.dtype = np.int16
+        self.current_time = None
+        self.timestamps = None
 
     def run(self):
         while not self.stop_signal.is_set():
@@ -79,6 +81,7 @@ class StackSaver(Process):
             (self.save_parameters.n_t, 2, *self.save_parameters.plane_size),
             dtype=self.dtype,
         )
+        self.current_time = np.empty(self.save_parameters.n_t)
         n_total = self.save_parameters.n_t * self.save_parameters.n_z
         while (
                 i_received < n_total
@@ -119,9 +122,17 @@ class StackSaver(Process):
             old_data = self.current_data[: self.i_in_plane, :, :, :].copy()
             self.current_data = np.empty((n_t, *self.current_data.shape[1:]), dtype=self.dtype)
             self.current_data[: self.i_in_plane, :, :, :] = old_data
+            old_time = self.current_time[: self.i_in_plane].copy()
+            self.current_time = np.empty(n_t)
+            self.current_time[: self.i_in_plane] = old_time
 
     def fill_dataset(self, frame):
         self.current_data[self.i_in_plane, :, :, :] = self.cast(frame)
+        try:
+            t = self.time_queue.get(timeout=0.001)
+            self.current_time[self.i_in_plane] = t
+        except Empty:
+            print('time queue is empty')
         self.i_in_plane += 1
         self.saved_status_queue.put(
             SavingStatus(
@@ -187,6 +198,17 @@ class StackSaver(Process):
                 self.dump_metadata(f)
 
     def complete_plane(self):
+        if self.i_block == 0:
+            self.timestamps = self.current_time.copy() - self.current_time[0]
+        else:
+            self.timestamps = np.vstack((self.timestamps, self.current_time - self.current_time[0]))
+        # save each time because the computer might crash before all planes are acquired
+        fl.save(
+            Path(self.save_parameters.output_dir)
+            / "time.h5",
+            self.timestamps.T,
+            compression="blosc",
+        )
         if self.save_parameters.channel == "Green":
             fl.save(
                 Path(self.save_parameters.output_dir)

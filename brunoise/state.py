@@ -126,9 +126,10 @@ class ExperimentState(QObject):
             self.scanner.data_queue, self.scanner.stop_event
         )
         self.save_queue = ArrayQueue(max_mbytes=800)
+        self.timestamp_queue = Queue()
 
         self.saver = StackSaver(
-            self.scanner.stop_event, self.save_queue, self.scanner.n_frames_queue
+            self.scanner.stop_event, self.save_queue, self.timestamp_queue, self.scanner.n_frames_queue
         )
         self.save_status: Optional[SavingStatus] = None
 
@@ -213,6 +214,11 @@ class ExperimentState(QObject):
     def get_image(self):
         try:
             images = -self.reconstructor.output_queue.get(timeout=0.001)
+            try:
+                t = self.scanner.time_queue.get(timeout=0.001)
+            except Empty:
+                t = 0
+                print("scanner time queue is empty")
             if self.saver.saving_signal.is_set():
                 if (
                     self.save_status is not None
@@ -220,6 +226,7 @@ class ExperimentState(QObject):
                 ):
                     self.end_experiment()
                 self.save_queue.put(images)
+                self.timestamp_queue.put(t)
             return images
         except Empty:
             return None

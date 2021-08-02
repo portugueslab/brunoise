@@ -20,7 +20,7 @@ import scanning_patterns
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum
-from time import sleep
+from time import sleep, perf_counter
 from math import ceil
 
 
@@ -63,6 +63,7 @@ class Scanner(Process):
     def __init__(self, experiment_start_event, duration_queue, max_queuesize=200):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
+        self.time_queue = Queue()
         self.parameter_queue = Queue()
         self.stop_event = Event()
         self.experiment_start_event = experiment_start_event
@@ -183,6 +184,7 @@ class Scanner(Process):
                     number_of_samples_per_channel=self.n_samples_in,
                     timeout=1,
                 )
+                self.time_queue.put(perf_counter())
                 i_acquired += 1
             except nidaqmx.DaqError as e:
                 print(e)
