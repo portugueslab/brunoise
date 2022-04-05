@@ -5,6 +5,7 @@ from scanning import (
     Scanner,
     ScanningParameters,
     ScanningState,
+    RoiParameters,
     ImageReconstructor,
     frame_duration,
 )
@@ -20,6 +21,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from typing import Optional
 from time import sleep
 from sequence_diagram import SequenceDiagram
+import numpy as np
 
 
 class ExperimentSettings(ParametrizedQt):
@@ -47,6 +49,14 @@ class ScanningSettings(ParametrizedQt):
         self.laser_power = Param(10.0, (0, 100))
         self.n_turn = Param(10, (0, 100))
         self.n_extra_init = Param(100, (0, 100))
+
+
+class RoiSettings(ParametrizedQt):
+    def __init__(self):
+        super().__init__()
+        self.name = "roi"
+        self.roi_scanning = Param(False)
+        self.roi_write_signals = np.empty(0)
 
 
 def convert_params(st: ScanningSettings) -> ScanningParameters:
@@ -97,6 +107,14 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
     return sp
 
 
+def convert_roi_params(st: RoiSettings) -> RoiParameters:
+    rp = RoiParameters(
+        roi_scanning=st.roi_scanning,
+        roi_write_signals=st.roi_write_signals
+    )
+    return rp
+
+
 class ExperimentState(QObject):
     sig_scanning_changed = pyqtSignal()
 
@@ -109,6 +127,7 @@ class ExperimentState(QObject):
         self.experiment_start_event = Event()
         self.scanning_settings = ScanningSettings()
         self.experiment_settings = ExperimentSettings()
+        self.roi_settings = RoiSettings()
         self.pause_after = False
 
         self.parameter_tree = ParameterTree()
@@ -122,6 +141,7 @@ class ExperimentState(QObject):
             self.experiment_start_event, duration_queue=self.duration_queue
         )
         self.scanning_parameters = None
+        self.roi_parameters = None
         self.reconstructor = ImageReconstructor(
             self.scanner.data_queue, self.scanner.stop_event
         )
@@ -140,6 +160,7 @@ class ExperimentState(QObject):
         self.power_controller = LaserPowerControl()
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
+        self.roi_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanner.start()
         self.reconstructor.start()
         self.saver.start()
@@ -185,6 +206,8 @@ class ExperimentState(QObject):
         params_to_send = convert_params(self.scanning_settings)
         params_to_send.scanning_state = ScanningState.PREVIEW
         self.scanner.parameter_queue.put(params_to_send)
+        self.roi_parameters = convert_roi_params(self.roi_settings)
+        self.scanner.roi_queue.put(self.roi_parameters)
         self.paused = False
 
     def pause_scanning(self):
@@ -235,6 +258,8 @@ class ExperimentState(QObject):
         self.scanning_parameters = convert_params(self.scanning_settings)
         self.power_controller.move_abs(self.scanning_settings.laser_power)
         self.scanner.parameter_queue.put(self.scanning_parameters)
+        self.roi_parameters = convert_roi_params(self.roi_settings)
+        self.scanner.roi_queue.put(self.roi_parameters)
         self.reconstructor.parameter_queue.put(self.scanning_parameters)
         self.sig_scanning_changed.emit()
 

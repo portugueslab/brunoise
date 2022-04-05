@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QMainWindow,
     QDockWidget,
     QVBoxLayout,
+    QGridLayout,
     QPushButton,
     QLabel,
     QProgressBar,
@@ -119,21 +120,29 @@ class ViewingWidget(QWidget):
     def __init__(self, state):
         super().__init__()
         self.state = state
-        self.setLayout(QVBoxLayout())
         self.image_viewer = pg.ImageView()
-        self.chk_green = QCheckBox("Green Channel")
-        self.chk_red = QCheckBox("Red Channel")
         self.image_viewer.ui.roiBtn.hide()
         self.image_viewer.ui.menuBtn.hide()
-        self.layout().addWidget(self.image_viewer)
-        self.layout().addWidget(self.chk_green)
-        self.layout().addWidget(self.chk_red)
+        self.chk_green = QCheckBox("Green Channel")
         self.chk_green.setChecked(True)
+        self.chk_red = QCheckBox("Red Channel")
+        self.chk_roi = QCheckBox("draw an roi")
+        self.chk_roi.toggled.connect(self.draw_roi)
+
+        self.layout = QGridLayout()
+        self.layout.addWidget(self.image_viewer, 0, 0, 1, 2)
+        self.layout.addWidget(self.chk_green, 1, 0)
+        self.layout.addWidget(self.chk_red, 2, 0)
+        self.layout.addWidget(self.chk_roi, 1, 1)
+        self.setLayout(self.layout)
+
         self.first_image = True
         self.color_modality_in_use = "g"
         self.modality_to_display = "g"
         self.levelMode_in_use = "mono"
         self.levelMode_to_display = "mono"
+
+        self.roi = None
 
     def update(self) -> None:
         current_images = self.state.get_image()
@@ -173,6 +182,29 @@ class ViewingWidget(QWidget):
             levelMode=self.levelMode_in_use
         )
         self.first_image = False
+
+        if self.roi is None:
+            self.state.roi_settings.roi_write_signals = np.empty(0)
+        else:
+            self.state.roi_settings.roi_write_signals = self.get_roi_write_signals()
+
+    def draw_roi(self):
+        if self.chk_roi.isChecked():
+            self.roi = pg.RectROI((0, 0), (30, 30), removable=True)
+            self.image_viewer.addItem(self.roi)
+        else:
+            self.image_viewer.removeItem(self.roi)
+            self.roi = None
+
+    def get_roi_write_signals(self):
+        vol_x = self.state.scanning_parameters.voltage_x
+        vol_y = self.state.scanning_parameters.voltage_y
+        n_x = self.state.scanning_parameters.n_x
+        n_y = self.state.scanning_parameters.n_y
+        x_array = np.array([np.linspace(-vol_x, vol_x, n_x) for _ in range(n_x)]).T
+        y_array = np.array([np.linspace(-vol_y, vol_y, n_y) for _ in range(n_y)])
+        result = self.roi.getArrayRegion(np.stack([x_array, y_array], axis=0), self.image_viewer.imageItem, axes=(1, 2))
+        return result.reshape(2, -1)
 
 
 class DockedWidget(QDockWidget):
@@ -223,6 +255,16 @@ class ScanningWidget(QWidget):
         self.update_button()
 
 
+class RoiWidget(QWidget):
+    def __init__(self, state: ExperimentState):
+        self.state = state
+        super().__init__()
+        self.roi_layout = QVBoxLayout()
+        self.roi_settings_gui = ParameterGui(self.state.roi_settings)
+        self.roi_layout.addWidget(self.roi_settings_gui)
+        self.setLayout(self.roi_layout)
+
+
 class TwopViewer(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -234,6 +276,7 @@ class TwopViewer(QMainWindow):
         self.setCentralWidget(self.image_display)
 
         self.scanning_widget = ScanningWidget(self.state)
+        self.roi_widget = RoiWidget(self.state)
         self.experiment_widget = ExperimentControl(self.state)
 
         self.motor_control_slider = MotionControlXYZ(self.state.motors)
@@ -241,6 +284,10 @@ class TwopViewer(QMainWindow):
         self.addDockWidget(
             Qt.LeftDockWidgetArea,
             DockedWidget(widget=self.scanning_widget, title="Scanning settings"),
+        )
+        self.addDockWidget(
+            Qt.LeftDockWidgetArea,
+            DockedWidget(widget=self.roi_widget, title="Roi scanning"),
         )
         self.addDockWidget(
             Qt.RightDockWidgetArea,

@@ -46,6 +46,12 @@ class ScanningParameters:
     n_frames: int = 100
 
 
+@dataclass
+class RoiParameters:
+    roi_scanning: bool = False
+    roi_write_signals: object = np.empty(0)
+
+
 def frame_duration(sp: ScanningParameters):
     return (
         scanning_patterns.n_total(sp.n_x, sp.n_y, sp.n_turn, sp.n_extra)
@@ -65,10 +71,13 @@ class Scanner(Process):
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
         self.time_queue = Queue()
         self.parameter_queue = Queue()
+        self.roi_queue = Queue()
         self.stop_event = Event()
         self.experiment_start_event = experiment_start_event
         self.scanning_parameters = ScanningParameters()
         self.new_parameters = copy(self.scanning_parameters)
+        self.roi_parameters = RoiParameters()
+        self.new_roi_parameters = copy(self.roi_parameters)
         self.duration_queue = duration_queue
         self.n_frames_queue = Queue()
 
@@ -111,6 +120,9 @@ class Scanner(Process):
         self.write_signals = np.stack([self.pos_x, self.pos_y], 0)
         self.read_buffer = np.zeros((4, self.n_samples_in))
         self.mystery_offset = self.scanning_parameters.mystery_offset
+
+        self.roi_scanning = self.roi_parameters.roi_scanning
+        self.roi_write_signals = np.ascontiguousarray(self.roi_parameters.roi_write_signals)
 
     def setup_tasks(self, read_task, write_task, shutter_task):
         # Configure the channels
@@ -172,7 +184,10 @@ class Scanner(Process):
         ):
             # The first write has to be defined before the task starts
             try:
-                writer.write_many_sample(self.write_signals)
+                if self.roi_scanning and len(self.roi_write_signals) == 2:
+                    writer.write_many_sample(self.roi_write_signals)
+                else:
+                    writer.write_many_sample(self.write_signals)
                 if i_acquired == 0:
                     self.check_start_plane()
                 if first_write:
@@ -199,6 +214,12 @@ class Scanner(Process):
                     != ScanningState.EXPERIMENT_RUNNING
                     or self.new_parameters.scanning_state == ScanningState.PREVIEW
                 ):
+                    break
+            except Empty:
+                pass
+            try:
+                self.new_roi_parameters = self.roi_queue.get(timeout=0.0001)
+                if self.new_roi_parameters.roi_scanning != self.roi_parameters.roi_scanning:
                     break
             except Empty:
                 pass
@@ -238,6 +259,7 @@ class Scanner(Process):
                 toggle_shutter = True
 
             self.scanning_parameters = self.new_parameters
+            self.roi_parameters = self.new_roi_parameters
             self.compute_scan_parameters()
             with Task() as write_task, Task() as read_task, Task() as shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task)
