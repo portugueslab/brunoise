@@ -1,0 +1,25 @@
+{
+   "description":"<p>Brunoise is a software package for control of two-photon laser scanning microscopes.</p>",
+   "title":"brunoise",
+   "creators":[
+      {
+         "name":"\u0160tih, Vilim"
+      },
+      {
+         "affiliation":"Institute of Neuroscience, Technical University of Munich, Germany",
+         "name":"Paoli, Emanuele"
+      },
+      {
+         "name":"Wu, You Kure",
+         "affiliation":"Institute of Neuroscience, Technical University of Munich, Germany",
+      },
+      {
+         "name":"Asua, Diego",
+      },
+      {
+         "orcid":"0000-0002-1495-9314",
+         "affiliation":"Institute of Neuroscience, Technical University of Munich, Germany",
+         "name":"Portugues, Ruben"
+      }
+   ]
+}
