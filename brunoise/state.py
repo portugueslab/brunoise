@@ -31,7 +31,7 @@ class ExperimentSettings(ParametrizedQt):
         self.n_planes = Param(1, (1, 500))
         self.dz = Param(1.0, (-20, 20.0), unit="um")
         self.channel = Param("Green", ["Green", "Red", "Both"])
-        self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test\python", gui=False)
+        self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test", gui=False)
         self.notification_email = Param("None")
         self.notify_every_n_planes = Param(3, (1, 1000))
 
@@ -154,9 +154,9 @@ class ExperimentState(QObject):
         self.save_status: Optional[SavingStatus] = None
 
         self.motors = dict()
-        self.motors["x"] = MotorControl("COM6", axes="x")
-        self.motors["y"] = MotorControl("COM6", axes="y")
-        self.motors["z"] = MotorControl("COM6", axes="z")
+        self.motors["x"] = MotorControl("COM5", axes="x")
+        self.motors["y"] = MotorControl("COM5", axes="y")
+        self.motors["z"] = MotorControl("COM5", axes="z")
         self.power_controller = LaserPowerControl()
         self.scanning_settings.sig_param_changed.connect(self.send_scan_params)
         self.scanning_settings.sig_param_changed.connect(self.send_save_params)
