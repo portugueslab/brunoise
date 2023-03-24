@@ -61,7 +61,7 @@ def frame_duration(sp: ScanningParameters):
 
 def compute_waveform(sp: ScanningParameters):
     return scanning_patterns.simple_scanning_pattern(
-        sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, True
+        sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, False
     )
 
 
