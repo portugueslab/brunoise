@@ -17,6 +17,7 @@ from brunoise.external_communication import ZMQcomm
 from brunoise.power_control import LaserPowerControl
 from math import sqrt
 from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtWidgets import QMessageBox
 from typing import Optional
 from time import sleep
 from sequence_diagram import SequenceDiagram
@@ -155,6 +156,13 @@ class ExperimentState(QObject):
     def start_experiment(self, first_plane=True):
         duration = self.external_sync.send(self.parameter_tree.serialize())
         if duration is None:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Warning")
+            msg.setInformativeText("Couldn't make a connection with Stytra. Experiment not started.")
+            msg.setWindowTitle("Warning")
+            msg.exec_()
+
             self.restart_scanning()
             return False
         self.duration_queue.put(duration)

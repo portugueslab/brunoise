@@ -15,6 +15,9 @@ class ZMQcomm:
     def send(self, data):
         zmq_context = zmq.Context()
         with zmq_context.socket(zmq.REQ) as zmq_socket:
+            # Prevents the socket/context from hanging indefinitely when there is no connection.
+            zmq_socket.setsockopt(zmq.LINGER, 0)
+
             zmq_socket.connect(self.zmq_tcp_address)
             zmq_socket.send_json(data)
             poller = zmq.Poller()
@@ -23,5 +26,8 @@ class ZMQcomm:
             if poller.poll(1000):
                 duration = zmq_socket.recv_json()
             zmq_socket.close()
-            zmq_context.destroy()
+
+        # Clean up the connection.
+        zmq_context.term()
+        zmq_context.destroy()
         return duration
