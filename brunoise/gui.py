@@ -34,7 +34,7 @@ class CalculatedParameterDisplay(QWidget):
     def display_scanning_parameters(self, sp: ScanningParameters):
         self.lbl_frameinfo.setText(
             "Resolution: {} x {}\n".format(sp.n_x, sp.n_y)
-            + "Frame duration {:.3f}\n".format(frame_duration(sp))
+            + "Estimated frame duration {:.3f}\n".format(frame_duration(sp))
             + "Extra pixels {}\n".format(sp.n_extra)
             + "Line scanning frequency {:.2f}Hz".format(
                 sp.sample_rate_out / (2 * (sp.n_x + sp.n_turn))

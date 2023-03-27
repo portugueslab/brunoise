@@ -14,8 +14,9 @@ def make_arc(cx, cy, radius, n_segments=12, is_left=True):
 
 
 @jit(nopython=True)
-def n_total(n_x, n_y, n_turn, n_extra_points):
-    return (n_x + 2 * n_turn) * n_y - 2 * n_turn + n_extra_points
+def n_total(n_x, n_y, n_turn, n_extra_points, pause):
+    pause_points = n_x if pause else 0
+    return (n_x + 2 * n_turn) * n_y - 2 * n_turn + n_extra_points + pause_points
 
 
 @jit(nopython=True)

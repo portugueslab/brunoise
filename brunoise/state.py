@@ -82,17 +82,17 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
     # Solving for the biggest image surface is basically a constraint problem of the form:
     # ax**2 + bx + c = 0, where a is the aspect ratio (can be seen as y * x where y = a * x), b is the two turns,
     # and c is the total number of available positions (given the desired frequency and sampling rate).
-    b = -2 * st.n_turn
+    b = 2 * st.n_turn
     if pause:  # If pause is enabled, additional points dependent on x will be added to the trajectory.
-        b -= 1
-    n = (b + np.sqrt(b**2 - (4 * st.aspect_ratio * -n_total))) / (2 * st.aspect_ratio) # Image dimensions.
+        b += 1
+    n = (-b + np.sqrt(b**2 - (4 * st.aspect_ratio * -n_total))) / (2 * st.aspect_ratio) # Image dimensions.
 
     # Change the y-axis to get the right aspect ratio.
     n_x = int(np.floor(n))
     n_y = int(np.floor(n * st.aspect_ratio))
 
     # No need to get rid of 2 turns, we already added it before.
-    n_extra = int(n_total - ((n_x * 2 * st.n_turn) + n_x*n_y))
+    n_extra = int(n_total - ((n_x * b) + (n_x*n_y)))
 
     mystery_offset = -int(round(st.output_rate_khz * 0.8))
     voltage_max = st.voltage

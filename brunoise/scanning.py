@@ -56,7 +56,7 @@ class RoiParameters:
 
 def frame_duration(sp: ScanningParameters):
     return (
-        scanning_patterns.n_total(sp.n_x, sp.n_y, sp.n_turn, sp.n_extra)
+        scanning_patterns.n_total(sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, sp.pause)
         / sp.sample_rate_out
     )
 
