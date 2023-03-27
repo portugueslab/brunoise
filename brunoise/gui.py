@@ -236,6 +236,7 @@ class ScanningWidget(QWidget):
         self.setLayout(self.scanning_layout)
 
         self.state.sig_scanning_changed.connect(self.update_display)
+        self.update_display()  # We cannot catch the first signal, so we trigger it manually.
         self.update_button()
 
     def update_display(self):
