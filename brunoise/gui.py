@@ -235,11 +235,13 @@ class ScanningWidget(QWidget):
         self.scanning_layout.addWidget(self.pause_button)
         self.setLayout(self.scanning_layout)
 
-        self.state.sig_scanning_changed.connect(self.update_calc_display)
+        self.state.sig_scanning_changed.connect(self.update_display)
         self.update_button()
 
-    def update_calc_display(self):
+    def update_display(self):
         self.scanning_calc.display_scanning_parameters(self.state.scanning_parameters)
+
+        self.pause_button.setEnabled(self.state.scanning_parameters.pause)
 
     def update_button(self):
         if self.state.paused:
