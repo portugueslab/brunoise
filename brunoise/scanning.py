@@ -45,6 +45,7 @@ class ScanningParameters:
     shutter: bool = False
     n_frames: int = 100
     framerate: int = 2
+    pause: bool = True
 
 
 @dataclass
@@ -62,7 +63,7 @@ def frame_duration(sp: ScanningParameters):
 
 def compute_waveform(sp: ScanningParameters):
     return scanning_patterns.simple_scanning_pattern(
-        sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, False
+        sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, sp.pause
     )
 
 

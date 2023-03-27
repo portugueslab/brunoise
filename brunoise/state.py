@@ -52,6 +52,7 @@ class ScanningSettings(ParametrizedQt):
         self.laser_power = Param(10.0, (0, 100))
         self.n_turn = Param(10, (0, 100))
         self.n_extra_init = Param(100, (0, 100))
+        self.pause = Param(1, (0, 1))  # Int as Boolean GUI generation is not supported.
 
 
 class RoiSettings(ParametrizedQt):
@@ -68,6 +69,8 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
     laser scanning
 
     """
+    pause = True if st.pause else False
+
     sample_rate = st.output_rate_khz * 1000
     n_total = sample_rate / st.framerate
     # Loosens the restraint by 2 * the turn value, as the first and last line require one turn less.
@@ -80,6 +83,8 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
     # ax**2 + bx + c = 0, where a is the aspect ratio (can be seen as y * x where y = a * x), b is the two turns,
     # and c is the total number of available positions (given the desired frequency and sampling rate).
     b = -2 * st.n_turn
+    if pause:  # If pause is enabled, additional points dependent on x will be added to the trajectory.
+        b -= 1
     n = (b + np.sqrt(b**2 - (4 * st.aspect_ratio * -n_total))) / (2 * st.aspect_ratio) # Image dimensions.
 
     # Change the y-axis to get the right aspect ratio.
@@ -108,7 +113,8 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
         sample_rate_out=sample_rate,
         shutter=st.shutter,
         mystery_offset=mystery_offset,
-        framerate=st.framerate
+        framerate=st.framerate,
+        pause=pause
     )
     return sp
 
