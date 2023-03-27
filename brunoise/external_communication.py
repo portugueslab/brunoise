@@ -8,7 +8,7 @@ class ExternalCommunicationSettings(ParameterTree):
 
 
 class ZMQcomm:
-    def __init__(self, zmq_tcp_address="tcp://O1-592:5555", timeout=2):
+    def __init__(self, zmq_tcp_address="tcp://localhost:5555", timeout=2):
         self.zmq_tcp_address = zmq_tcp_address
         self.timeout = timeout
 
