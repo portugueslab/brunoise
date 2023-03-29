@@ -6,8 +6,8 @@ with open("requirements.txt") as f:
 
 setup(
     name="bruoise",
-    version="0.2.0",
-    author="Vilim Stih, Emanuele Paoli, Diego Asua @ Portugueslab",
+    version="0.1.0",
+    author="Vilim Stih, Emanuele Paoli, Diego Asua, You Kure Wu, Nathan van Beelen @ Portugueslab",
     author_email="vilim@neuro.mpg.de",
     packages=find_packages(),
     install_requires=requirements,
