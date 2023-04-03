@@ -20,7 +20,7 @@ import scanning_patterns
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum
-from time import sleep
+from time import sleep, perf_counter
 from math import ceil
 
 
@@ -46,6 +46,12 @@ class ScanningParameters:
     n_frames: int = 100
 
 
+@dataclass
+class RoiParameters:
+    roi_scanning: bool = False
+    roi_write_signals: object = np.empty(0)
+
+
 def frame_duration(sp: ScanningParameters):
     return (
         scanning_patterns.n_total(sp.n_x, sp.n_y, sp.n_turn, sp.n_extra)
@@ -63,11 +69,15 @@ class Scanner(Process):
     def __init__(self, experiment_start_event, duration_queue, max_queuesize=200):
         super().__init__()
         self.data_queue = ArrayQueue(max_mbytes=max_queuesize)
+        self.time_queue = Queue()
         self.parameter_queue = Queue()
+        self.roi_queue = Queue()
         self.stop_event = Event()
         self.experiment_start_event = experiment_start_event
         self.scanning_parameters = ScanningParameters()
         self.new_parameters = copy(self.scanning_parameters)
+        self.roi_parameters = RoiParameters()
+        self.new_roi_parameters = copy(self.roi_parameters)
         self.duration_queue = duration_queue
         self.n_frames_queue = Queue()
 
@@ -108,14 +118,17 @@ class Scanner(Process):
         self.sample_rate_in = self.n_bin * self.sample_rate_out
 
         self.write_signals = np.stack([self.pos_x, self.pos_y], 0)
-        self.read_buffer = np.zeros((2, self.n_samples_in))
+        self.read_buffer = np.zeros((4, self.n_samples_in))
         self.mystery_offset = self.scanning_parameters.mystery_offset
+
+        self.roi_scanning = self.roi_parameters.roi_scanning
+        self.roi_write_signals = np.ascontiguousarray(self.roi_parameters.roi_write_signals)
 
     def setup_tasks(self, read_task, write_task, shutter_task):
         # Configure the channels
         read_task.ai_channels.add_ai_voltage_chan(
-            "Dev1/ai0:1", min_val=-1, max_val=1
-        )  # channels are 0: green PMT, 1 x galvo pos 2 y galvo pos
+            "Dev1/ai0:3", min_val=-1, max_val=1
+        )  # channels are 0: green PMT, 1 x galvo pos 2 y galvo pos, 3 red PMT
         write_task.ao_channels.add_ao_voltage_chan(
             "Dev1/ao0:1", min_val=-10, max_val=10
         )
@@ -171,7 +184,10 @@ class Scanner(Process):
         ):
             # The first write has to be defined before the task starts
             try:
-                writer.write_many_sample(self.write_signals)
+                if self.roi_scanning and len(self.roi_write_signals) == 2:
+                    writer.write_many_sample(self.roi_write_signals)
+                else:
+                    writer.write_many_sample(self.write_signals)
                 if i_acquired == 0:
                     self.check_start_plane()
                 if first_write:
@@ -183,11 +199,12 @@ class Scanner(Process):
                     number_of_samples_per_channel=self.n_samples_in,
                     timeout=1,
                 )
+                self.time_queue.put(perf_counter())
                 i_acquired += 1
             except nidaqmx.DaqError as e:
                 print(e)
                 break
-            self.data_queue.put(self.read_buffer[0, :])
+            self.data_queue.put(np.stack([self.read_buffer[0, :], self.read_buffer[-1, :]]))
             # if new parameters have been received and changed, update
             # them, breaking out of the loop if the experiment is not running
             try:
@@ -197,6 +214,12 @@ class Scanner(Process):
                     != ScanningState.EXPERIMENT_RUNNING
                     or self.new_parameters.scanning_state == ScanningState.PREVIEW
                 ):
+                    break
+            except Empty:
+                pass
+            try:
+                self.new_roi_parameters = self.roi_queue.get(timeout=0.0001)
+                if self.new_roi_parameters.roi_scanning != self.roi_parameters.roi_scanning:
                     break
             except Empty:
                 pass
@@ -236,6 +259,7 @@ class Scanner(Process):
                 toggle_shutter = True
 
             self.scanning_parameters = self.new_parameters
+            self.roi_parameters = self.new_roi_parameters
             self.compute_scan_parameters()
             with Task() as write_task, Task() as read_task, Task() as shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task)
@@ -266,14 +290,18 @@ class ImageReconstructor(Process):
                 pass
 
             try:
-                image = self.data_in_queue.get(timeout=0.001)
-                self.output_queue.put(
-                    scanning_patterns.reconstruct_image_pattern(
-                        np.roll(image, self.scanning_parameters.mystery_offset),
-                        *self.waveform,
-                        (self.scanning_parameters.n_x, self.scanning_parameters.n_y),
-                        self.scanning_parameters.n_bin,
+                images = self.data_in_queue.get(timeout=0.001)
+                recon_images = []
+                for image in images:
+                    recon_images.append(
+                        scanning_patterns.reconstruct_image_pattern(
+                            np.roll(image, self.scanning_parameters.mystery_offset),
+                            *self.waveform,
+                            (self.scanning_parameters.n_x, self.scanning_parameters.n_y),
+                            self.scanning_parameters.n_bin,
+                        )
                     )
+                self.output_queue.put(np.stack(recon_images)
                 )
             except Empty:
                 pass
