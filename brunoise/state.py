@@ -259,6 +259,7 @@ class ExperimentState(QObject):
                     and self.save_status.i_t + 1 == self.save_status.target_params.n_t
                 ):
                     self.end_experiment()
+                    self.save_status.i_t = -5
                 self.save_queue.put(images)
                 self.timestamp_queue.put(t)
             return images
