@@ -196,6 +196,7 @@ class ExperimentState(QObject):
             self.send_save_params()
             self.saver.saving_signal.set()
         self.experiment_start_event.set()
+        self.motors["z"].send_command("MF")
         return True
 
     def end_experiment(self, force=False):
@@ -205,6 +206,7 @@ class ExperimentState(QObject):
             self.advance_plane()
         else:
             self.saver.saving_signal.clear()
+            self.motors["z"].send_command("MO")
             if self.pause_after:
                 self.pause_scanning()
             else:
@@ -225,6 +227,7 @@ class ExperimentState(QObject):
         self.paused = True
 
     def advance_plane(self):
+        self.motors["z"].send_command("MO")
         self.motors["z"].move_rel(self.experiment_settings.dz / 1000)
         sleep(0.2)
         self.start_experiment(first_plane=False)

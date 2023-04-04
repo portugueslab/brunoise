@@ -37,6 +37,10 @@ class MotorControl:
         except pyvisa.VisaIOError:
             print(f"Error get position axes number {self.axes} ")
             return None
+        
+    def send_command(self, command):
+        # "MO": motor on, "MF": off
+        self.execute_motor(self.axes + command)
 
     def move_abs(self, coordinate):
         coordinate = str(coordinate)
