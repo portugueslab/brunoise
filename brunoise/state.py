@@ -42,7 +42,7 @@ class ScanningSettings(ParametrizedQt):
         super().__init__()
         self.name = "scanning"
         self.aspect_ratio = Param(1.0, (0.2, 5.0))
-        self.voltage = Param(3.0, (0.2, 4.0))
+        self.voltage = Param(3.0, (0.2, 5.0))
         self.framerate = Param(2.0, (0.1, 10.0))
         self.reset_shutter = Param(False)
         self.binning = Param(10, (1, 50))
