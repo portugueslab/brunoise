@@ -205,6 +205,7 @@ class ExperimentState(QObject):
         if not force and self.save_status.i_z + 1 < self.save_status.target_params.n_z:
             self.advance_plane()
         else:
+            sleep(0.2)
             self.saver.saving_signal.clear()
             self.motors["z"].send_command("MO")
             if self.pause_after:
