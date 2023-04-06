@@ -23,7 +23,7 @@ class ZMQcomm:
             poller = zmq.Poller()
             poller.register(zmq_socket, zmq.POLLIN)
             duration = None
-            if poller.poll(1000):
+            if poller.poll(5000):
                 duration = zmq_socket.recv_json()
             zmq_socket.close()
 

@@ -10,6 +10,7 @@ import json
 import yagmail
 from PIL import Image
 import os
+import time
 
 
 @dataclass
@@ -100,7 +101,16 @@ class StackSaver(Process):
                 i_received += 1
             except Empty:
                 pass
-
+        
+        t_end = time.time()
+        while time.time() - t_end < 5:
+            try:
+                frame = self.data_queue.get(timeout=0.01)
+                self.fill_dataset(frame)
+                break
+            except Empty:
+                pass
+        
         if self.i_block > 0:
             self.finalize_dataset()
             if self.save_parameters.notification_email != "None":

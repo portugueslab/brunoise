@@ -42,7 +42,7 @@ class ScanningSettings(ParametrizedQt):
         super().__init__()
         self.name = "scanning"
         self.aspect_ratio = Param(1.0, (0.2, 5.0))
-        self.voltage = Param(3.0, (0.2, 4.0))
+        self.voltage = Param(3.0, (0.2, 5.0))
         self.framerate = Param(2.0, (0.1, 10.0))
         self.reset_shutter = Param(False)
         self.binning = Param(10, (1, 50))
@@ -196,6 +196,7 @@ class ExperimentState(QObject):
             self.send_save_params()
             self.saver.saving_signal.set()
         self.experiment_start_event.set()
+        self.motors["z"].send_command("MF")
         return True
 
     def end_experiment(self, force=False):
@@ -204,7 +205,9 @@ class ExperimentState(QObject):
         if not force and self.save_status.i_z + 1 < self.save_status.target_params.n_z:
             self.advance_plane()
         else:
+            sleep(0.2)
             self.saver.saving_signal.clear()
+            self.motors["z"].send_command("MO")
             if self.pause_after:
                 self.pause_scanning()
             else:
@@ -225,6 +228,7 @@ class ExperimentState(QObject):
         self.paused = True
 
     def advance_plane(self):
+        self.motors["z"].send_command("MO")
         self.motors["z"].move_rel(self.experiment_settings.dz / 1000)
         sleep(0.2)
         self.start_experiment(first_plane=False)
@@ -256,6 +260,7 @@ class ExperimentState(QObject):
                     and self.save_status.i_t + 1 == self.save_status.target_params.n_t
                 ):
                     self.end_experiment()
+                    self.save_status.i_t = -5
                 self.save_queue.put(images)
                 self.timestamp_queue.put(t)
             return images
