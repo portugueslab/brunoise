@@ -42,7 +42,7 @@ class ScanningParameters:
     mystery_offset: int = -400
     sample_rate_out: float = 500000.0
     scanning_state: ScanningState = ScanningState.PREVIEW
-    reset_shutter: bool = True
+    shutter: bool = False
     n_frames: int = 100
 
 
@@ -240,32 +240,19 @@ class Scanner(Process):
             except Empty:
                 pass
 
-    def toggle_shutter(self, shutter_task):
-        shutter_task.write(False, auto_start=True)
-        shutter_task.write(True, auto_start=True)
-        shutter_task.write(False, auto_start=True)
-        sleep(0.05)
+    def set_shutter(self, shutter_task, shutter_state):
+        shutter_task.write(shutter_state, auto_start=True)
 
     def run_scanning(self):
         while not self.stop_event.is_set():
-            toggle_shutter = False
-            if (
-                self.new_parameters.scanning_state == ScanningState.PAUSED
-                and self.scanning_parameters.scanning_state != ScanningState.PAUSED
-            ) or (
-                self.new_parameters.scanning_state != ScanningState.PAUSED
-                and self.scanning_parameters.scanning_state == ScanningState.PAUSED
-            ):
-                toggle_shutter = True
-
             self.scanning_parameters = self.new_parameters
             self.roi_parameters = self.new_roi_parameters
             self.compute_scan_parameters()
             with Task() as write_task, Task() as read_task, Task() as shutter_task:
                 self.setup_tasks(read_task, write_task, shutter_task)
-                if self.scanning_parameters.reset_shutter or toggle_shutter:
-                    self.toggle_shutter(shutter_task)
+                self.set_shutter(shutter_task, self.scanning_parameters.shutter)
                 if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
+                    self.set_shutter(shutter_task, False)
                     self.pause_loop()
                 else:
                     self.scan_loop(read_task, write_task)

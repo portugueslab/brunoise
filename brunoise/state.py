@@ -44,7 +44,7 @@ class ScanningSettings(ParametrizedQt):
         self.aspect_ratio = Param(1.0, (0.2, 5.0))
         self.voltage = Param(3.0, (0.2, 5.0))
         self.framerate = Param(2.0, (0.1, 10.0))
-        self.reset_shutter = Param(False)
+        self.shutter = Param(False)
         self.binning = Param(10, (1, 50))
         self.output_rate_khz = Param(400, (50, 2000))
         self.laser_power = Param(10.0, (0, 100))
@@ -102,7 +102,7 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
         n_turn=n_turn,
         n_extra=n_extra,
         sample_rate_out=sample_rate,
-        reset_shutter=st.reset_shutter,
+        shutter=st.shutter,
         mystery_offset=mystery_offset,
     )
     return sp
