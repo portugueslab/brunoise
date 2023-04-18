@@ -184,7 +184,6 @@ class Scanner(Process):
             == ScanningState.EXPERIMENT_RUNNING
             or i_acquired < self.scanning_parameters.n_frames
         ):
-            start_time = perf_counter()
             # The first write has to be defined before the task starts
             try:
                 if self.roi_scanning and len(self.roi_write_signals) == 2:
@@ -229,10 +228,6 @@ class Scanner(Process):
 
             # calculate duration
             self.calculate_duration()
-
-            # CPU intensive alternative to sleep, as sleep is not accurate enough.
-            while (1 / self.scanning_parameters.framerate) - (perf_counter() - start_time) > 0:
-                continue
 
     def pause_loop(self):
         while not self.stop_event.is_set():

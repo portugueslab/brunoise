@@ -76,9 +76,6 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
     # Loosens the restraint by 2 * the turn value, as the first and last line require one turn less.
     n_total += 2 * st.n_turn
 
-    # Tightens the restraint by 1ms -> allows for less noise in frame duration further down the line.
-    n_total -= sample_rate / 1000.
-
     # Solving for the biggest image surface is basically a constraint problem of the form:
     # ax**2 + bx + c = 0, where a is the aspect ratio (can be seen as y * x where y = a * x), b is the two turns,
     # and c is the total number of available positions (given the desired frequency and sampling rate).
