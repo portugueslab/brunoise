@@ -13,7 +13,7 @@ def make_arc(cx, cy, radius, n_segments=12, is_left=True):
     return np.cos(angles) * radius + cx, np.sin(angles) * radius + cy
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def n_total(n_x, n_y, n_turn, n_extra_points, pause):
     pause_points = n_x if pause else 0
     return (n_x + 2 * n_turn) * n_y - 2 * n_turn + n_extra_points + pause_points
