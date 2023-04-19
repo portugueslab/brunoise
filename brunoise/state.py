@@ -24,6 +24,8 @@ from time import sleep
 from sequence_diagram import SequenceDiagram
 import numpy as np
 
+import numpy as np
+
 
 class ExperimentSettings(ParametrizedQt):
     def __init__(self):
@@ -50,6 +52,7 @@ class ScanningSettings(ParametrizedQt):
         self.laser_power = Param(10.0, (0, 100))
         self.n_turn = Param(10, (0, 100))
         self.n_extra_init = Param(100, (0, 100))
+        self.pause = Param(1, (0, 1))  # Int as Boolean GUI generation is not supported.
 
 
 class RoiSettings(ParametrizedQt):
@@ -66,44 +69,49 @@ def convert_params(st: ScanningSettings) -> ScanningParameters:
     laser scanning
 
     """
-    n_extra = -1
-    i_extra = 0
-    while n_extra <= 1:
-        a = st.aspect_ratio
-        sample_rate = st.output_rate_khz * 1000
-        fps = st.framerate
-        n_total = sample_rate / fps
-        n_extra = st.n_extra_init + i_extra * 100
-        n_turn = st.n_turn
-        n_y_approx = (
-            -2 * n_turn + sqrt(4 * n_turn - 4 * a * (n_extra - 2 * n_turn - n_total))
-        ) / (2 * a)
+    pause = True if st.pause else False
 
-        n_y = int(round(n_y_approx))
-        n_x = int(round(a * n_y))
+    sample_rate = st.output_rate_khz * 1000
+    n_total = sample_rate / st.framerate
+    # Loosens the restraint by 2 * the turn value, as the first and last line require one turn less.
+    n_total += 2 * st.n_turn
 
-        n_extra = int(round(n_total - (n_x + 2 * n_turn) * n_y + 2 * n_turn))
-        i_extra += 1
+    # Solving for the biggest image surface is basically a constraint problem of the form:
+    # ax**2 + bx + c = 0, where a is the aspect ratio (can be seen as y * x where y = a * x), b is the two turns,
+    # and c is the total number of available positions (given the desired frequency and sampling rate).
+    b = 2 * st.n_turn
+    if pause:  # If pause is enabled, additional points dependent on x will be added to the trajectory.
+        b += 1
+    n = (-b + np.sqrt(b**2 - (4 * st.aspect_ratio * -n_total))) / (2 * st.aspect_ratio) # Image dimensions.
+
+    # Change the y-axis to get the right aspect ratio.
+    n_x = int(np.floor(n))
+    n_y = int(np.floor(n * st.aspect_ratio))
+
+    # No need to get rid of 2 turns, we already added it before.
+    n_extra = int(n_total - ((n_x * b) + (n_x*n_y)))
 
     mystery_offset = -int(round(st.output_rate_khz * 0.8))
     voltage_max = st.voltage
     if st.aspect_ratio >= 1:
-        voltage_x = voltage_max
-        voltage_y = voltage_x / st.aspect_ratio
-    else:
-        voltage_x = voltage_max * st.aspect_ratio
         voltage_y = voltage_max
+        voltage_x = voltage_y / st.aspect_ratio
+    else:
+        voltage_y = voltage_max * st.aspect_ratio
+        voltage_x = voltage_max
 
     sp = ScanningParameters(
         voltage_x=voltage_x,
         voltage_y=voltage_y,
         n_x=n_x,
         n_y=n_y,
-        n_turn=n_turn,
+        n_turn=st.n_turn,
         n_extra=n_extra,
         sample_rate_out=sample_rate,
         shutter=st.shutter,
         mystery_offset=mystery_offset,
+        framerate=st.framerate,
+        pause=pause
     )
     return sp
 

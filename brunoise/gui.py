@@ -34,7 +34,7 @@ class CalculatedParameterDisplay(QWidget):
     def display_scanning_parameters(self, sp: ScanningParameters):
         self.lbl_frameinfo.setText(
             "Resolution: {} x {}\n".format(sp.n_x, sp.n_y)
-            + "Frame duration {:.3f}\n".format(frame_duration(sp))
+            + "Estimated frame duration {:.3f}\n".format(frame_duration(sp))
             + "Extra pixels {}\n".format(sp.n_extra)
             + "Line scanning frequency {:.2f}Hz".format(
                 sp.sample_rate_out / (2 * (sp.n_x + sp.n_turn))
@@ -235,11 +235,14 @@ class ScanningWidget(QWidget):
         self.scanning_layout.addWidget(self.pause_button)
         self.setLayout(self.scanning_layout)
 
-        self.state.sig_scanning_changed.connect(self.update_calc_display)
+        self.state.sig_scanning_changed.connect(self.update_display)
+        self.update_display()  # We cannot catch the first signal, so we trigger it manually.
         self.update_button()
 
-    def update_calc_display(self):
+    def update_display(self):
         self.scanning_calc.display_scanning_parameters(self.state.scanning_parameters)
+
+        self.pause_button.setEnabled(self.state.scanning_parameters.pause)
 
     def update_button(self):
         if self.state.paused:

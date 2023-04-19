@@ -44,6 +44,8 @@ class ScanningParameters:
     scanning_state: ScanningState = ScanningState.PREVIEW
     shutter: bool = False
     n_frames: int = 100
+    framerate: int = 2
+    pause: bool = True
 
 
 @dataclass
@@ -54,14 +56,14 @@ class RoiParameters:
 
 def frame_duration(sp: ScanningParameters):
     return (
-        scanning_patterns.n_total(sp.n_x, sp.n_y, sp.n_turn, sp.n_extra)
+        scanning_patterns.n_total(sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, sp.pause)
         / sp.sample_rate_out
     )
 
 
 def compute_waveform(sp: ScanningParameters):
     return scanning_patterns.simple_scanning_pattern(
-        sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, True
+        sp.n_x, sp.n_y, sp.n_turn, sp.n_extra, sp.pause
     )
 
 
