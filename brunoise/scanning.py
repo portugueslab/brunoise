@@ -255,16 +255,6 @@ class Scanner(Process):
             first_write = True
 
             while not self.stop_event.is_set():
-                toggle_shutter = False
-                if (
-                        self.new_parameters.scanning_state == ScanningState.PAUSED
-                        and self.scanning_parameters.scanning_state != ScanningState.PAUSED
-                ) or (
-                        self.new_parameters.scanning_state != ScanningState.PAUSED
-                        and self.scanning_parameters.scanning_state == ScanningState.PAUSED
-                ):
-                    toggle_shutter = True
-
                 # Check if tasks need to be (re)created
                 if (self.scanning_parameters.n_bin != self.new_parameters.n_bin
                         or self.scanning_parameters.sample_rate_out != self.new_parameters.sample_rate_out):
@@ -285,8 +275,7 @@ class Scanner(Process):
                     self.scanning_parameters = self.new_parameters
                     self.compute_scan_parameters()
 
-                if self.scanning_parameters.reset_shutter or toggle_shutter:
-                    self.toggle_shutter(shutter_task)
+                self.set_shutter(shutter_task, self.scanning_parameters.shutter)
                 if self.scanning_parameters.scanning_state == ScanningState.PAUSED:
                     self.set_shutter(shutter_task, False)
                     self.pause_loop()
