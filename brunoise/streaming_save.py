@@ -123,7 +123,7 @@ class StackSaver(Process):
         """
         Conversion into a format appropriate for saving
         """
-        frame = (frame/20*2**16).astype(np.int16)
+        frame = (frame / 10 * (2**15 - 1)).astype(self.dtype)
         return frame
 
     def update_n_t(self, n_t):
