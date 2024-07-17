@@ -123,7 +123,8 @@ class StackSaver(Process):
         """
         Conversion into a format appropriate for saving
         """
-        frame = (frame / 10 * (2**15 - 1)).astype(self.dtype)
+        # input range * scanning n_bin
+        frame = (frame / (2 * 10) * (2**16 - 1)).astype(self.dtype)
         return frame
 
     def update_n_t(self, n_t):
