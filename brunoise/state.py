@@ -31,8 +31,9 @@ class ExperimentSettings(ParametrizedQt):
     def __init__(self):
         super().__init__()
         self.name = "recording"
+        self.lock_z = Param(True)
         self.n_planes = Param(1, (1, 500))
-        self.dz = Param(1.0, (-20, 20.0), unit="um")
+        self.dz = Param(1.0, (-50, 50.0), unit="um")
         self.channel = Param("Green", ["Green", "Red", "Both"])
         self.save_dir = Param(r"C:\Users\portugueslab\Desktop\test", gui=False)
         self.notification_email = Param("None")
@@ -204,7 +205,8 @@ class ExperimentState(QObject):
             self.send_save_params()
             self.saver.saving_signal.set()
         self.experiment_start_event.set()
-        self.motors["z"].send_command("MF")
+        if self.experiment_settings.lock_z:
+            self.motors["z"].send_command("MF")
         return True
 
     def end_experiment(self, force=False):
