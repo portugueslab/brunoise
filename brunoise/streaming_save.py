@@ -47,6 +47,7 @@ class StackSaver(Process):
         self.current_data = None
         self.saved_status_queue = Queue()
         self.dtype = np.int16
+        # self.dtype = float
         self.current_time = None
         self.timestamps = None
 
@@ -123,8 +124,8 @@ class StackSaver(Process):
         """
         Conversion into a format appropriate for saving
         """
-        # input range * scanning n_bin
-        frame = (frame / (2 * 10) * (2**16 - 1)).astype(self.dtype)
+        if self.dtype == np.int16:
+            frame = (frame / (2 / 2**12)).astype(self.dtype)
         return frame
 
     def update_n_t(self, n_t):
