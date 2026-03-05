@@ -4,7 +4,7 @@ lightparam>=0.4, <0.5
 pyqt5>=5.15
 pyzmq
 QDarkStyle==2.7
-markdown==3.2.2
+markdown==3.8.1
 click
 traitlets
 nidaqmx
